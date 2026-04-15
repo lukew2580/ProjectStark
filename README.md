@@ -1,4 +1,4 @@
-# Hardwareless AI
+# ProjectStark
 
 > A GPU/CPU-less AI framework that moves with the data flow.
 
