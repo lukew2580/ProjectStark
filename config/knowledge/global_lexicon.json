@@ -1,0 +1,22 @@
+{
+  "ENGLISH": ["hello", "swarm", "data", "peace", "intelligence", "global", "flow"],
+  "CHINESE": ["你好", "群", "数据", "和平", "智能", "全球", "流动"],
+  "SPANISH": ["hola", "enjambre", "datos", "paz", "inteligencia", "global", "flujo"],
+  "HINDI": ["नमस्ते", "झुंड", "डेटा", "शांति", "बुद्धि", "वैश्विक", "प्रवाह"],
+  "ARABIC": ["مرحبا", "سرب", "بيانات", "سلام", "ذكاء", "عالمي", "تدفق"],
+  "FRENCH": ["bonjour", "essaim", "données", "paix", "intelligence", "global", "flux"],
+  "BENGALI": ["नमस्ते", "ঝাঁক", "উপাত্ত", "শান্তি", "বুদ্ধি", "বৈশ্বিক", "প্রবাহ"],
+  "PORTUGUESE": ["olá", "enxame", "dados", "paz", "inteligência", "global", "fluxo"],
+  "RUSSIAN": ["привет", "рой", "данные", "мир", "интеллект", "глобальный", "поток"],
+  "URDU": ["ہیلو", "غول", "ڈیٹا", "امن", "ذہانت", "عالمی", "بہاؤ"],
+  "JAPANESE": ["こんにちは", "スウォーム", "データ", "平和", "知能", "グローバル", "フロー"],
+  "GERMAN": ["hallo", "schwarm", "daten", "frieden", "intelligenz", "global", "fluss"],
+  "KOREAN": ["안녕하세요", "군집", "데이터", "평화", "지능", "글로벌", "흐름"],
+  "ITALIAN": ["ciao", "sciame", "dati", "pace", "intelligenza", "globale", "flusso"],
+  "TURKISH": ["merhaba", "sürü", "veri", "barış", "zekâ", "küresel", "akış"],
+  "VIETNAMESE": ["xin chào", "đàn", "dữ liệu", "hòa bình", "trí tuệ", "toàn cầu", "dòng chảy"],
+  "TAMIL": ["வணக்கம்", "திரள்", "தரவு", "அமைதி", "அறிவு", "உலகளாவிய", "ஓட்டம்"],
+  "SWAHILI": ["habari", "kundi", "data", "amani", "akili", "ulimwengu", "mtiririko"],
+  "THAI": ["สวัสดี", "ฝูง", "ข้อมูล", "สันติภาพ", "ปัญญา", "ทั่วโลก", "การไหล"],
+  "POLISH": ["cześć", "rój", "dane", "pokój", "inteligencja", "globalny", "przepływ"]
+}

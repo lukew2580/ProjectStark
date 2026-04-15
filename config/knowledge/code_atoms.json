@@ -1,0 +1,8 @@
+{
+  "STRUCTURAL": ["import", "from", "def", "class", "async", "await", "return", "pass", "yield"],
+  "LOGIC": ["if", "else", "elif", "for", "in", "while", "try", "except", "finally"],
+  "CORE": ["print", "len", "range", "enumerate", "zip", "dict", "list", "set", "int", "str"],
+  "SWARM": ["Hypervector", "Node", "Expert", "Pulse", "Registry", "Monitor", "Vault"],
+  "RESTRICTED": ["DELETE_FILE", "SCAN_NETWORK", "OVERWRITE_CORE", "REPLICATE_SELF", "TERMINATE_PROCESS"],
+  "SAFETY": ["VERIFY_HUMAN", "SANDBOX_EXECUTE", "ALIGN_ETHICS", "LOG_AUDIT"]
+}

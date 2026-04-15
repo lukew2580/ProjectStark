@@ -1,0 +1,18 @@
+[
+    "hello", "goodbye", "yes", "no", "maybe",
+    "please", "thanks", "help", "error", "ok",
+    "process", "calculate", "analyze", "search", "create",
+    "delete", "update", "send", "receive", "connect",
+    "build", "run", "stop", "start", "test",
+    "data", "user", "system", "network", "node",
+    "stream", "flow", "signal", "message", "request",
+    "response", "query", "result", "output", "input",
+    "fast", "slow", "big", "small", "new",
+    "old", "good", "bad", "ready", "busy",
+    "active", "idle", "online", "offline", "secure",
+    "intelligence", "distributed", "decentralized", "hardwareless", "quantum",
+    "vector", "dimension", "compute", "memory", "brain",
+    "swarm", "ether", "protocol", "gateway", "pipeline",
+    "acknowledged", "complete", "processing", "initialized", "streaming",
+    "encoded", "decoded", "routed", "transformed", "assembled"
+]
