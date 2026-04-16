@@ -211,3 +211,60 @@ async def get_statistics():
     
     detector = get_virus_detector()
     return detector.get_statistics()
+
+
+class AttributionRequest(BaseModel):
+    software_hash: str
+    download_source: str = ""
+    user_system_info: Optional[Dict[str, Any]] = None
+
+
+class ThreatIntelRequest(BaseModel):
+    query: str
+    sources: Optional[List[str]] = None
+
+
+@router.post("/attribution/check")
+async def check_software_attribution(request: AttributionRequest):
+    """Check if software came from known scammer source."""
+    from core_engine.virus_guard import get_scammer_attribution
+    
+    attribution = get_scammer_attribution()
+    report = await attribution.check_software_attribution(
+        request.software_hash,
+        request.download_source,
+        request.user_system_info
+    )
+    
+    return {
+        "software_hash": report.software_hash,
+        "source_analysis": report.source_analysis,
+        "threat_intel_matches": report.threatIntel_matches,
+        "risk_level": report.risk_level,
+        "recommendations": report.recommendations,
+        "authority_reports": report.authority_reports
+    }
+
+
+@router.post("/attribution/search")
+async def search_threat_intel(request: ThreatIntelRequest):
+    """Search threat intelligence for mentions."""
+    from core_engine.virus_guard import get_scammer_attribution
+    
+    attribution = get_scammer_attribution()
+    results = await attribution.search_threat_intel(request.query, request.sources)
+    
+    return {
+        "query": request.query,
+        "results": results,
+        "total_matches": len(results)
+    }
+
+
+@router.get("/attribution/scammers")
+async def list_known_scammers():
+    """List all known scammer distribution channels."""
+    from core_engine.virus_guard import get_scammer_attribution
+    
+    attribution = get_scammer_attribution()
+    return {"scammers": attribution.get_known_scammers()}

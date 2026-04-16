@@ -325,6 +325,7 @@ class VirusEradicator:
 
 _global_detector: Optional[VirusDetector] = None
 _global_eradicator: Optional[VirusEradicator] = None
+_global_attribution: Optional['ScammerAttribution'] = None
 
 
 def get_virus_detector() -> VirusDetector:
@@ -339,3 +340,208 @@ def get_virus_eradicator() -> VirusEradicator:
     if _global_eradicator is None:
         _global_eradicator = VirusEradicator(get_virus_detector())
     return _global_eradicator
+
+
+class AttributionSource(Enum):
+    YOUTUBE = "youtube"
+    SOCIAL_MEDIA = "social_media"
+    FORUM = "forum"
+    WEBSITE = "website"
+    FILE_REPOSITORY = "file_repository"
+    Pirated_software_SITE = "pirated_site"
+    TECH_SUPPORT_SCAM = "tech_support_scam"
+
+
+@dataclass
+class ScammerProfile:
+    """Profile of a known scammer distribution channel."""
+    source_id: str
+    source_name: str
+    source_type: AttributionSource
+    url: str
+    indicators: List[str]
+    reported_count: int = 0
+    first_seen: str = ""
+    risk_score: float = 0.0
+
+
+@dataclass
+class AttributionReport:
+    """Report on software attribution."""
+    software_hash: str
+    source_analysis: List[Dict]
+    threatIntel_matches: List[Dict]
+    risk_level: str
+    recommendations: List[str]
+    authority_reports: List[Dict]
+
+
+class ScammerAttribution:
+    """
+    Scammer Attribution System.
+    Identifies when software was downloaded from known scammer/malicious sources.
+    Integrates with threat intelligence for better reporting.
+    """
+    
+    def __init__(self, dimensions: int = DIMENSIONS):
+        self.dimensions = dimensions
+        self._scammer_profiles: Dict[str, ScammerProfile] = {}
+        self._software_hashes: Dict[str, List[str]] = {}  # hash -> sources
+        self._threat_intel: List[Dict] = []
+        self._setup_known_scammers()
+        self._setup_threat_intel()
+    
+    def _setup_known_scammers(self):
+        """Setup known scammer distribution channels."""
+        known_scammers = [
+            ("yt_crackwatch", "CrackWatch YouTube", AttributionSource.YOUTUBE, 
+             ["crack", "free download", "pirated software", "激活"], 0.9),
+            ("yt_freekeys", "Free Keys Pro", AttributionSource.YOUTUBE,
+             ["free license", "product key", "activation free"], 0.85),
+            ("gh_pirated_repo", "GitHub Pirated Software", AttributionSource.WEBSITE,
+             ["free download", "cracked", "patch"], 0.8),
+            (" forum_blackhat", "BlackHat Forum", AttributionSource.FORUM,
+             ["hack tool", "free malware", "bypass"], 0.95),
+            ("site_freeapk", "FreeAPK Dangers", AttributionSource.WEBSITE,
+             ["free apk", "premium free", "paid free"], 0.75),
+            ("yt_techscam", "Tech Support Scam Ads", AttributionSource.YOUTUBE,
+             ["tech support", "call now", "helpline scam"], 0.9),
+            ("site_romscam", " romance scam Distribution", AttributionSource.Pirated_software_SITE,
+             ["free vpn", "dating app", "crypto free"], 0.85),
+            ("file_malware_repo", "Malware File Repository", AttributionSource.FILE_REPOSITORY,
+             ["free movie", "free game", "free software"], 0.9),
+        ]
+        
+        for sid, name, stype, indicators, risk in known_scammers:
+            combined = " ".join(indicators)
+            seed = abs(hash(combined)) % (2**31)
+            vector = generate_random_vector(self.dimensions, seed=seed)
+            
+            self._scammer_profiles[sid] = ScammerProfile(
+                source_id=sid,
+                source_name=name,
+                source_type=stype,
+                url=f"https://example.com/{sid}",
+                indicators=indicators,
+                risk_score=risk,
+                first_seen=datetime.now().isoformat()
+            )
+    
+    def _setup_threat_intel(self):
+        """Setup threat intelligence feeds."""
+        self._threat_intel = [
+            {"type": "youtube", "patterns": ["crack", "free download", "激活", "keygen"]},
+            {"type": "social", "patterns": ["free followers", "hack account"]},
+            {"type": "forum", "patterns": ["bypass", "pirated", "cracked"]},
+            {"type": "website", "patterns": ["free apk", "premium free"]},
+        ]
+    
+    async def check_software_attribution(
+        self,
+        software_hash: str,
+        download_source: str = "",
+        user_system_info: Dict = None
+    ) -> AttributionReport:
+        """Check software attribution against known scammer sources."""
+        source_analysis = []
+        threatIntel_matches = []
+        
+        if download_source:
+            for sid, profile in self._scammer_profiles.items():
+                for indicator in profile.indicators:
+                    if indicator.lower() in download_source.lower():
+                        source_analysis.append({
+                            "source_id": sid,
+                            "source_name": profile.source_name,
+                            "matched_indicator": indicator,
+                            "risk_score": profile.risk_score,
+                            "source_type": profile.source_type.value
+                        })
+        
+        for intel in self._threat_intel:
+            for pattern in intel.get("patterns", []):
+                if download_source and pattern.lower() in download_source.lower():
+                    threatIntel_matches.append({
+                        "source": intel["type"],
+                        "matched_pattern": pattern,
+                        "severity": "HIGH" if profile.risk_score > 0.7 else "MEDIUM"
+                    })
+        
+        risk_level = "HIGH" if len(source_analysis) > 2 or len(threatIntel_matches) > 2 else "MEDIUM" if source_analysis else "LOW"
+        
+        recommendations = []
+        if source_analysis:
+            recommendations.extend([
+                "Software from known scammer source - Do NOT run",
+                "Report to anti-virus vendors",
+                "Submit to VirusTotal for community checking",
+                "Report to FTC if financial loss possible"
+            ])
+        
+        authority_reports = []
+        if source_analysis:
+            authority_reports.append({
+                "agency": "FBI IC3",
+                "url": "ic3.gov",
+                "report_type": "Internet Crime Report",
+                "evidence_hash": software_hash
+            })
+            authority_reports.append({
+                "agency": "CISA", 
+                "url": "cisa.gov/report",
+                "report_type": "Malware/LMalware Report",
+                "evidence_hash": software_hash
+            })
+        
+        return AttributionReport(
+            software_hash=software_hash,
+            source_analysis=source_analysis,
+            threatIntel_matches=threatIntel_matches,
+            risk_level=risk_level,
+            recommendations=recommendations,
+            authority_reports=authority_reports
+        )
+    
+    async def search_threat_intel(
+        self,
+        query: str,
+        sources: List[str] = None
+    ) -> List[Dict]:
+        """Search threat intelligence for mentions."""
+        results = []
+        query_lower = query.lower()
+        
+        search_sources = sources or ["youtube", "social", "forum", "website"]
+        
+        for source in search_sources:
+            for intel in self._threat_intel:
+                if intel.get("type") == source:
+                    for pattern in intel.get("patterns", []):
+                        if pattern in query_lower:
+                            results.append({
+                                "source": source,
+                                "pattern": pattern,
+                                "query": query,
+                                "severity": "HIGH"
+                            })
+        
+        return results
+    
+    def get_known_scammers(self) -> List[Dict]:
+        """Get all known scammer profiles."""
+        return [
+            {
+                "source_id": p.source_id,
+                "source_name": p.source_name,
+                "source_type": p.source_type.value,
+                "risk_score": p.risk_score
+            }
+            for p in self._scammer_profiles.values()
+        ]
+
+
+def get_scammer_attribution() -> ScammerAttribution:
+    global _global_attribution
+    if _global_attribution is None:
+        _global_attribution = ScammerAttribution()
+    return _global_attribution
