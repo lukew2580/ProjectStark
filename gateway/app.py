@@ -4,6 +4,7 @@ Hardwareless AI — Gateway Main App
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from gateway.routes import chat, health, models, stats
+from gateway.routes import memory, skills, keys, websocket
 from config import settings
 
 app = FastAPI(
@@ -26,6 +27,10 @@ app.include_router(health.router)
 app.include_router(chat.router)
 app.include_router(models.router)
 app.include_router(stats.router)
+app.include_router(memory.router)
+app.include_router(skills.router)
+app.include_router(keys.router)
+app.include_router(websocket.router)
 
 @app.on_event("startup")
 async def startup_event():
