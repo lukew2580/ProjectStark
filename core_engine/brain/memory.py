@@ -3,19 +3,21 @@ Hardwareless AI — Item Memory
 """
 import os
 import numpy as np
+from typing import Dict, List, Optional, Tuple
 from core_engine.brain.vectors import generate_random_vector
 
+
 class Memory:
-    def __init__(self, dimensions, rng=None, persistence_path=None):
+    def __init__(self, dimensions: int, rng: Optional[np.random.Generator] = None, persistence_path: Optional[str] = None):
         self.dimensions = dimensions
-        self.items = {}  # concept_name -> hypervector
+        self.items: Dict[str, np.ndarray] = {}  # concept_name -> hypervector
         self.rng = rng
         self.persistence_path = persistence_path
         
         if self.persistence_path:
             self.load_from_disk()
 
-    def memorize(self, concept_name, vector=None):
+    def memorize(self, concept_name: str, vector: Optional[np.ndarray] = None) -> np.ndarray:
         """Stores a concept in Item Memory and persists it."""
         if vector is None:
             vector = generate_random_vector(self.dimensions, rng=self.rng)
@@ -26,7 +28,7 @@ class Memory:
             
         return vector
 
-    def save_to_disk(self, path=None):
+    def save_to_disk(self, path: Optional[str] = None) -> bool:
         """Saves memory items to a binary file."""
         target = path or self.persistence_path
         if not target:
@@ -38,7 +40,7 @@ class Memory:
         np.savez_compressed(target, names=names, vectors=vectors)
         return True
 
-    def load_from_disk(self, path=None):
+    def load_from_disk(self, path: Optional[str] = None) -> bool:
         """Loads memory items from a binary file."""
         target = path or self.persistence_path
         if not target or not os.path.exists(target):
@@ -54,7 +56,7 @@ class Memory:
             print(f"Error loading memory vault: {e}")
             return False
 
-    def recall(self, query_vector, top_n=1):
+    def recall(self, query_vector: np.ndarray, top_n: int = 1) -> List[Tuple[str, float]]:
         """
         Finds the closest concept(s) in memory to the query vector.
         Uses vectorized similarity for speed — no Python loops.

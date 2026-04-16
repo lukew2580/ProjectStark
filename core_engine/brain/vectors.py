@@ -2,8 +2,10 @@
 Hardwareless AI — Vector Generation
 """
 import numpy as np
+from typing import Optional
 
-def generate_random_vector(dimensions, seed=None, rng=None):
+
+def generate_random_vector(dimensions: int, seed: Optional[int] = None, rng: Optional[np.random.Generator] = None) -> np.ndarray:
     """Generates a random D-dimensional bipolar vector."""
     if seed is not None:
         rng = np.random.default_rng(seed)

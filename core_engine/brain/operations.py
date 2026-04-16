@@ -2,9 +2,11 @@
 Hardwareless AI — Core HDC Operations
 """
 import numpy as np
+from typing import List, Optional
 from core_engine.brain.vectors import generate_random_vector
 
-def bind(vec_a, vec_b):
+
+def bind(vec_a: np.ndarray, vec_b: np.ndarray) -> np.ndarray:
     """
     Binding (element-wise multiply).
     Creates a new vector that is dissimilar to both inputs,
@@ -12,7 +14,8 @@ def bind(vec_a, vec_b):
     """
     return (vec_a * vec_b).astype(np.int8)
 
-def bundle(vectors, dimensions, rng=None):
+
+def bundle(vectors: List[np.ndarray], dimensions: int, rng: Optional[np.random.Generator] = None) -> np.ndarray:
     """
     Bundling (element-wise majority vote).
     Creates a vector that is *similar* to all inputs,
@@ -30,7 +33,8 @@ def bundle(vectors, dimensions, rng=None):
         result[ties] = tie_breaks[ties]
     return result
 
-def permute(vec, shifts=1):
+
+def permute(vec: np.ndarray, shifts: int = 1) -> np.ndarray:
     """
     Permutation (circular shift).
     Encodes POSITION / ORDER. permute(vec, 0) is position 0,
@@ -39,6 +43,7 @@ def permute(vec, shifts=1):
     """
     return np.roll(vec, shifts).astype(np.int8)
 
-def similarity(vec_a, vec_b, dimensions):
+
+def similarity(vec_a: np.ndarray, vec_b: np.ndarray, dimensions: int) -> float:
     """Cosine similarity for bipolar vectors → normalized dot product."""
     return float(np.dot(vec_a.astype(np.int32), vec_b.astype(np.int32))) / dimensions
