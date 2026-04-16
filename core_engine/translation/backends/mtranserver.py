@@ -41,17 +41,17 @@ class MTranServerBackend:
         source_lang: str = "auto",
         target_lang: str = "en"
     ) -> TranslationResult:
-        session = await self._get_session()
-        
-        lang_map = self._map_lang(source_lang, target_lang)
-        
-        payload = {
-            "text": text,
-            "from": lang_map["from"],
-            "to": lang_map["to"]
-        }
-
         try:
+            session = await self._get_session()
+            
+            lang_map = self._map_lang(source_lang, target_lang)
+            
+            payload = {
+                "text": text,
+                "from": lang_map["from"],
+                "to": lang_map["to"]
+            }
+
             async with session.post(
                 f"{self.endpoint}/translate",
                 json=payload,
@@ -69,6 +69,14 @@ class MTranServerBackend:
                 )
         except aiohttp.ClientError as e:
             raise Exception(f"MTranServer connection failed: {e}")
+        except Exception as e:
+            return TranslationResult(
+                text=text,
+                source_lang=source_lang,
+                target_lang=target_lang,
+                backend=BackendType.MTRANSERVER.value,
+                confidence=0.0
+            )
 
     def _map_lang(self, source: str, target: str) -> dict:
         lang_codes = {

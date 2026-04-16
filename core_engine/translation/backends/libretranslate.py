@@ -40,16 +40,16 @@ class LibreTranslateBackend:
         source_lang: str = "auto",
         target_lang: str = "en"
     ) -> TranslationResult:
-        session = await self._get_session()
-        
-        payload = {
-            "q": text,
-            "source": "auto" if source_lang == "auto" else source_lang,
-            "target": target_lang,
-            "format": "text"
-        }
-
         try:
+            session = await self._get_session()
+            
+            payload = {
+                "q": text,
+                "source": "auto" if source_lang == "auto" else source_lang,
+                "target": target_lang,
+                "format": "text"
+            }
+
             async with session.post(
                 f"{self.endpoint}/translate",
                 json=payload,
@@ -67,6 +67,14 @@ class LibreTranslateBackend:
                 )
         except aiohttp.ClientError as e:
             raise Exception(f"LibreTranslate connection failed: {e}")
+        except Exception as e:
+            return TranslationResult(
+                text=text,
+                source_lang=source_lang,
+                target_lang=target_lang,
+                backend=BackendType.LIBRETRANSLATE.value,
+                confidence=0.0
+            )
 
     async def get_languages(self) -> list:
         session = await self._get_session()
