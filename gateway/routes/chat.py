@@ -3,12 +3,14 @@ Hardwareless AI — Chat Endpoint
 """
 import time
 import uuid
+import asyncio
 from fastapi import APIRouter
 from pydantic import BaseModel
 from config.settings import DIMENSIONS, KNOWLEDGE_BASE, DEFAULT_NODE_COUNT, RESPONSE_TEMPLATES
 from core_engine.compression.compressor import CognitiveCompressor
 from core_engine.translation.encoder import Encoder
 from core_engine.translation.decoder import Decoder
+from core_engine.translation import get_weave, setup_translation_backends
 from core_engine.pipeline.pipeline import DataFlowPipeline
 
 router = APIRouter()
@@ -18,6 +20,16 @@ compressor = CognitiveCompressor()
 encoder = Encoder(dimensions=DIMENSIONS)
 decoder = Decoder(encoder=encoder)
 pipeline = DataFlowPipeline(node_count=DEFAULT_NODE_COUNT, dimensions=DIMENSIONS)
+
+# Initialize translation brain weave (lazy, on-demand backend setup)
+_weave = None
+
+def _get_weave():
+    global _weave
+    if _weave is None:
+        _weave = get_weave()
+        setup_translation_backends(enable_mtranserver=False, enable_libretranslate=False, enable_opus_mt=False)
+    return _weave
 
 # Cognitive Bootstrap: Inoculate Swarm with Repo DNA
 import os
@@ -134,4 +146,42 @@ async def chat_completions(request: OpenAIRequest):
                 "ratio": f"{words_saved / max(raw_words, 1):.0%}",
             }
         }
+    }
+
+
+class TranslateRequest(BaseModel):
+    text: str
+    source_lang: str = "auto"
+    target_lang: str = "en"
+
+
+@router.post("/translate")
+async def translate(request: TranslateRequest):
+    """Multilingual translation via HDC brain weave + neural backends."""
+    weave = _get_weave()
+    
+    result = await weave.think(
+        input_text=request.text,
+        input_lang=request.source_lang,
+        target_lang=request.target_lang,
+        polish=True
+    )
+    
+    return {
+        "original": request.text,
+        "translated": result.target_text,
+        "source_lang": result.source_lang,
+        "target_lang": result.target_lang,
+        "confidence": result.confidence,
+        "hypervector_dim": result.hypervector.shape[0]
+    }
+
+
+@router.get("/languages")
+async def list_languages():
+    """List supported languages."""
+    weave = _get_weave()
+    return {
+        "languages": weave.get_supported_languages(),
+        "matrix_languages": get_weave().language_matrix.get_supported_languages()
     }
