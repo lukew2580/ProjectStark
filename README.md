@@ -1,10 +1,16 @@
-# ProjectStark
+# Hardwareless AI (ProjectStark)
 
-> A GPU/CPU-less AI framework that moves with the data flow.
+> A GPU/CPU-less AI framework that moves with the data flow — now with VIRUS-VDI protection.
 
 ## What Is This?
 
 This is an experimental AI framework built on **Hyperdimensional Computing (HDC)** instead of traditional neural networks. It requires no GPU, no massive CPU, and runs in under 10MB of RAM while being **600x faster** than neural-net-style matrix multiplication.
+
+Now includes **comprehensive security**:
+- VIRUS-VDI (virus detection & eradication)
+- Scam Fighter System (tech support, IRS, romance scams)
+- Antivirus Integration (ClamAV, Microsoft Defender)
+- Scammer Attribution (identifies malicious download sources)
 
 ### The Core Idea
 
@@ -28,6 +34,26 @@ User Prompt
 API Response (OpenAI-compatible JSON)
 ```
 
+## Security Architecture
+
+```
+User Input
+    ↓
+[Security Layer]     ← Shell injection, SQL injection, XSS detection
+    ↓
+[VIRUS-VDI]         ← HDC-based virus detection
+    ↓
+[Scam Fighter]       ← Tech support, IRS, romance scam detection
+    ↓
+[Scammer Attribution] ← Identifies malicious download sources
+    ↓
+[Antivirus Integration] ← ClamAV, Microsoft Defender, etc.
+    ↓
+[Evidence Collector] ← Legal chain of custody for court
+    ↓
+API Response
+```
+
 ## Quick Start
 
 ```bash
@@ -42,6 +68,66 @@ python3 gateway.py
 
 # Test it (in another terminal)
 python3 stream_test.py
+```
+
+## Security Features
+
+### VIRUS-VDI (Virus Detection & Eradication)
+- HDC-based virus signature detection
+- Behavioral analysis
+- Automated quarantine
+- Authority reporting (FBI IC3, CISA)
+
+```bash
+# Scan file
+curl -X POST http://localhost:8000/v1/virus/scan/file \
+  -d '{"file_path": "/path/to/file"}'
+
+# Check attribution
+curl -X POST http://localhost:8000/v1/virus/attribution/check \
+  -d '{"software_hash": "abc123", "download_source": "crackwatch.com"}'
+```
+
+### Scam Fighter System
+Detects: Tech Support, IRS, Lottery, Romance, Phishing, Crypto, Job, Extortion scams
+
+```bash
+# Analyze phone number
+curl -X POST http://localhost:8000/v1/scam/analyze/phone \
+  -d '{"phone": "1-800-555-0100"}'
+
+# Analyze website
+curl -X POST http://localhost:8000/v1/scam/analyze/website \
+  -d '{"url": "http://example.com"}'
+```
+
+### Antivirus Integration
+- ClamAV
+- Microsoft Defender
+- Multi-engine scanning
+
+```bash
+# Scan with all engines
+curl -X POST http://localhost:8000/v1/antivirus/scan/single \
+  -d '{"file_path": "/path/to/file"}'
+
+# Get engine status
+curl http://localhost:8000/v1/antivirus/engines
+```
+
+### Automated Scanner
+- Scheduled scans (hourly, daily, weekly)
+- Real-time directory monitoring
+- Automatic quarantine
+
+```bash
+# Add scheduled scan
+curl -X POST http://localhost:8000/v1/scanner/scheduled/add \
+  -d '{"scan_id": "daily_downloads", "schedule": "daily", "target_paths": ["~/Downloads"]}'
+
+# Run manual scan
+curl -X POST http://localhost:8000/v1/scanner/run \
+  -d '{"target_path": "/path/to/scan"}'
 ```
 
 ## Plug & Play
@@ -76,18 +162,47 @@ hardwareless-ai/
 ├── stream_test.py             # Integration tests
 ├── requirements.txt           # Lightweight deps only
 ├── core_engine/
-│   ├── __init__.py
-│   ├── hdc_brain.py           # HDC brain — bind, bundle, permute, recall
-│   ├── translator.py          # Text ↔ Hypervector (thread-safe, order-aware)
-│   ├── compressor.py          # LeanCTX-inspired cognitive filter
-│   └── swarm_node.py          # DataFlowNode + Pipeline builder
-└── README.md
+│   ├── brain/                # HDC operations
+│   ├── translation/           # Language matrix, encoder/decoder
+│   ├── pipeline/              # Data flow pipeline
+│   ├── virus_guard.py         # VIRUS-VDI + Scammer Attribution
+│   ├── scam_fighter.py        # Scam detection
+│   ├── antivirus_integration.py # Multi-AV engine integration
+│   ├── automated_scanner.py   # Scheduled/real-time scanning
+│   └── security.py           # Security layer
+├── gateway/
+│   └── routes/              # API endpoints
+└── bridges/                  # Android, iOS bridges
 ```
+
+## API Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `/v1/chat/completions` | Chat (HDC-powered) |
+| `/v1/translate` | Translation |
+| `/v1/virus/*` | Virus detection & attribution |
+| `/v1/scam/*` | Scam detection |
+| `/v1/antivirus/*` | Multi-engine scanning |
+| `/v1/scanner/*` | Automated scanning |
+| `/v1/skills/*` | Skills management |
+| `/v1/memory/*` | Knowledge memory |
+| `/health` | Health check |
+
+## Recent Updates
+
+- Scammer Attribution System (identifies malicious download sources)
+- Antivirus Integration (ClamAV, Defender)
+- Automated Scanner Daemon (scheduled/real-time)
+- HDC-based virus detection
+- Scam Fighter (8 scam types)
+- Legal evidence chain of custody
 
 ## Roadmap
 
 - [x] Phase 1: HDC Brain (Algorithmic Leap)
 - [x] Phase 2: Plug & Play Gateway (Data Flow)
-- [x] Refinement: LeanCTX Compression, thread safety, word order
-- [ ] Phase 3: Real P2P networking (distribute across actual devices)
-- [ ] Phase 4: Quantum substrate hooks (QPU interface)
+- [x] Phase 3: Security Suite (VIRUS-VDI, Scam Fighter)
+- [x] Phase 4: Antivirus Integration
+- [ ] Phase 5: Real P2P networking
+- [ ] Phase 6: Quantum substrate hooks

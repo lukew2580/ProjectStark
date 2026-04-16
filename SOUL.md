@@ -208,6 +208,66 @@ async def recall_skill(context, args):
 
 ---
 
+## New Security Skills (v2)
+
+### virus_guard_skill
+Detects viruses using HDC hypervector similarity.
+
+```python
+# skills/virus_guard_skill.py
+from core_engine.virus_guard import get_virus_detector
+
+async def run(context, args):
+    file_path = args["file_path"]
+    detector = get_virus_detector()
+    report = await detector.scan_file(file_path)
+    return {"status": report.status.value, "virus": report.virus_name}
+```
+
+### scam_detector_skill
+Detects phone, email, and website scams.
+
+```python
+# skills/scam_detector_skill.py
+from core_engine.scam_fighter import get_scam_detector
+
+async def run(context, args):
+    detector = get_scam_detector()
+    report = await detector.analyze_phone_number(args["phone"])
+    return report
+```
+
+### attribution_skill
+Identifies malicious download sources.
+
+```python
+# skills/attribution_skill.py
+from core_engine.virus_guard import get_scammer_attribution
+
+async def run(context, args):
+    attribution = get_scammer_attribution()
+    report = await attribution.check_software_attribution(
+        args["software_hash"],
+        args.get("download_source", "")
+    )
+    return {"risk_level": report.risk_level, "recommendations": report.recommendations}
+```
+
+### antivirus_scan_skill
+Multi-engine antivirus scanning.
+
+```python
+# skills/antivirus_scan_skill.py
+from core_engine.antivirus_integration import get_antivirus_integration
+
+async def run(context, args):
+    av = get_antivirus_integration()
+    results = await av.scan_multi_engine(args["file_path"])
+    return {"infected": any(r.is_infected for r in results), "engines": len(results)}
+```
+
+---
+
 ## Testing Skills
 
 ```bash

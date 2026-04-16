@@ -1,87 +1,75 @@
 # Hardwareless AI — Development Roadmap
 
-## Completed Features ✅
-
-### Core Engine
-- [x] HDC Hypervector Brain (language_matrix, brain_weave)
-- [x] Translation System (20 languages, 3 backends)
-- [x] Skills System (SOUL manifest, registry)
-- [x] Memory Persistence
-- [x] Weight/Mass System (VectorMass, SemanticDensity)
-- [x] Agent Router (HDC-based routing)
-- [x] Pipeline System
-
-### Security & Protection
-- [x] Security Layer (threat detection, sandbox)
-- [x] VIRUS-VDI (virus detection & eradication)
-- [x] Scam Fighter System (SFS - 8 scam types)
-- [x] STEALTH Mode (hide capabilities from attackers)
-
-### Platform Integration
-- [x] Universal Bridge (Kotlin, Swift, JS, Rust)
-- [x] VR/AR Integration (OpenXR, Meta Ray-Ban, etc)
-- [x] Network Protocol (HV01 v2)
-
-### Legal & Compliance
-- [x] Intel Network (team routing)
-- [x] Evidence Collector (chain of custody)
-- [x] Legal Reporter (FTC, FBI, FCC formats)
-
-### Gateway APIs (15+ endpoints)
-- [x] /v1/chat, /v1/translate, /v1/skills
-- [x] /v1/memory, /v1/keys, /v1/agents
-- [x] /v1/security, /v1/virus, /v1/scam
-- [x] /v1/stealth, /v1/bridge, /v1/xr
-- [x] /v1/intel, /v1/evidence
-
----
-
-## In Progress 🚧
-
-### Testing & Documentation
-- [ ] Unit tests for core modules
-- [ ] Integration tests for APIs
-- [ ] API documentation (OpenAPI/Swagger)
-- [ ] User guide / README
-- [ ] SOUL.md updates
-
-### Performance Optimization
-- [ ] Benchmark HDC operations
-- [ ] Optimize hypervector encoding
-- [ ] Cache improvements
-
----
-
 ## Phase 1: Cleanup & Polish 📋
 
-### Code Quality
-- [ ] Fix LSP warnings (aiohttp, ctranslate2 imports)
-- [ ] Add type hints throughout
-- [ ] Error handling improvements
-- [ ] Logging system
+### 1.1 Fix LSP Warnings - Import Errors
+- [ ] Fix aiohttp imports in mtranserver.py
+- [ ] Fix aiohttp imports in libretranslate.py
+- [ ] Fix ctranslate2/transformers imports in opus_mt.py
+- [ ] Fix get_weave import in gateway/routes/chat.py
+- [ ] Fix stream_vector in pipeline.py
 
-### Testing
-- [ ] Test translation backends
-- [ ] Test agent routing
-- [ ] Test security layer
-- [ ] Test virus detection
-- [ ] Test scam detection
+### 1.2 Add Type Hints
+- [ ] Add type hints to core_engine/brain/ modules
+- [ ] Add type hints to core_engine/translation/ modules
+- [ ] Add type hints to core_engine/security.py
+- [ ] Add type hints to core_engine/virus_guard.py
+- [ ] Add type hints to core_engine/scam_fighter.py
+
+### 1.3 Error Handling Improvements
+- [ ] Add try/catch to translation backends
+- [ ] Add try/catch to agent router
+- [ ] Add try/catch to WebSocket handlers
+- [ ] Create centralized error handler middleware
+- [ ] Add proper HTTP status codes for all error types
+
+### 1.4 Logging System
+- [ ] Add logging to core modules
+- [ ] Add request/response logging to gateway
+- [ ] Add security event logging
+- [ ] Add debug mode flag
+- [ ] Create log rotation config
+
+### 1.5 Unit Tests
+- [ ] Test brain/vectors.py - generate_random_vector
+- [ ] Test brain/operations.py - bind, bundle, similarity
+- [ ] Test translation/language_matrix.py - encode/decode
+- [ ] Test agent_router.py - routing logic
+- [ ] Test security layer - threat detection
+- [ ] Test virus_guard.py - detection
+- [ ] Test scam_fighter.py - scam detection
+
+### 1.6 API Tests
+- [ ] Test /health endpoint
+- [ ] Test /chat endpoint
+- [ ] Test /translate endpoint
+- [ ] Test /v1/skills endpoints
+- [ ] Test /v1/security endpoints
+- [ ] Test /v1/virus endpoints
+- [ ] Test /v1/scam endpoints
+
+### 1.7 Documentation
+- [ ] Update README.md
+- [ ] Document all API endpoints
+- [ ] Add examples for each feature
+- [ ] Update SOUL.md with new skills
+- [ ] Create architecture diagram
 
 ---
 
 ## Phase 2: Feature Expansion 🚀
 
-### Enhanced Translation
-- [ ] More language pairs
-- [ ] Better neural polish integration
-- [ ] Offline mode improvements
+### 2.1 Enhanced Translation
+- [ ] Add more language pairs
+- [ ] Improve neural polish integration
+- [ ] Add offline fallback mode
 
-### Skills Ecosystem
-- [ ] More built-in skills
-- [ ] Skill marketplace structure
-- [ ] Community skills framework
+### 2.2 Skills Ecosystem
+- [ ] Add more built-in skills
+- [ ] Create skill marketplace structure
+- [ ] Add skill testing framework
 
-### Agent System
+### 2.3 Agent System
 - [ ] Multi-agent orchestration
 - [ ] Agent collaboration protocols
 - [ ] Tool integration
@@ -90,15 +78,15 @@
 
 ## Phase 3: Platform Expansion 📱
 
-### Mobile Apps
+### 3.1 Mobile Apps
 - [ ] Android app (Kotlin bridge integration)
 - [ ] iOS app (Swift bridge integration)
 
-### Desktop
+### 3.2 Desktop
 - [ ] Electron wrapper
 - [ ] Desktop app with tray icon
 
-### Web
+### 3.3 Web
 - [ ] Frontend improvements
 - [ ] Real-time WebSocket UI
 
@@ -106,12 +94,12 @@
 
 ## Phase 4: Intelligence Gathering 🕵️
 
-### Passive Analysis
+### 4.1 Passive Analysis
 - [ ] Automatic scam pattern learning
 - [ ] New virus signature detection
 - [ ] Threat intelligence updates
 
-### Active Defense
+### 4.2 Active Defense
 - [ ] Honeypot expansion
 - [ ] Deception technology
 - [ ] Attribution tracking
@@ -120,12 +108,12 @@
 
 ## Phase 5: Legal & Law Enforcement 🤝
 
-### Evidence Management
+### 5.1 Evidence Management
 - [ ] Automated report generation
 - [ ] Multi-jurisdiction support
 - [ ] Court-ready formatting
 
-### Integration
+### 5.2 Integration
 - [ ] FTC API integration
 - [ ] FBI IC3 API integration
 - [ ] Local PD reporting
@@ -134,47 +122,32 @@
 
 ## Phase 6: Community & Distribution 👥
 
-### Open Source Release
+### 6.1 Open Source Release
 - [ ] Clean up repository
 - [ ] License selection (AGPL/Commercial)
 - [ ] Contribution guidelines
 - [ ] Security policy
 
-### Distribution
+### 6.2 Distribution
 - [ ] PyPI package
 - [ ] Docker image
 - [ ] One-liner installer
 
 ---
 
-## Quick Wins 🎯
+## Quick Wins (Start Here) 🎯
 
-1. **Fix imports** - Remove LSP warnings
-2. **Add tests** - Basic functionality tests
-3. **Document APIs** - Swagger is already enabled at /docs
-4. **CLI improvements** - Better help messages
-5. **Error handling** - Graceful degradation
-
----
-
-## Dependencies Needed
-
-```bash
-# Core
-pip install numpy networkx psutil fastapi uvicorn aiohttp
-
-# ML/Translation (optional)
-pip install ctranslate2 transformers sentencepiece
-
-# Testing
-pip install pytest pytest-asyncio
-
-# Type checking
-pip install mypy pyright
-```
+1. **Fix LSP imports** - aiohttp, ctranslate2
+2. **Add type hints** - core modules
+3. **Error handling** - try/catch everywhere
+4. **Logging** - add to all modules
+5. **Unit tests** - basic functionality
+6. **API tests** - endpoint validation
+7. **Documentation** - update README
 
 ---
 
 *Last Updated: 2026-04-16*
-*Commit: 721c632*
+*Commit: 493e2a3*
 *Total Lines: ~16,000*
+*GitHub: 16 commits*

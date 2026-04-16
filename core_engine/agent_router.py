@@ -3,6 +3,7 @@ Hardwareless AI — HDC Agent Router
 Routes inputs to specialist agents via hypervector similarity
 """
 import asyncio
+import hashlib
 import numpy as np
 from typing import Dict, List, Optional, Any, Callable
 from dataclasses import dataclass, field
