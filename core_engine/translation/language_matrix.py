@@ -18,7 +18,11 @@ LANGUAGE_CODES = {
     "ar": "ARABIC", "fr": "FRENCH", "bn": "BENGALI", "pt": "PORTUGUESE",
     "ru": "RUSSIAN", "ur": "URDU", "ja": "JAPANESE", "de": "GERMAN",
     "ko": "KOREAN", "it": "ITALIAN", "tr": "TURKISH", "vi": "VIETNAMESE",
-    "ta": "TAMIL", "sw": "SWAHILI", "th": "THAI", "pl": "POLISH"
+    "ta": "TAMIL", "sw": "SWAHILI", "th": "THAI", "pl": "POLISH",
+    # Phase 2: Expanded languages (10 more)
+    "id": "INDONESIAN", "nl": "DUTCH", "sv": "SWEDISH", "da": "DANISH",
+    "no": "NORWEGIAN", "fi": "FINNISH", "el": "GREEK", "he": "HEBREW",
+    "cs": "CZECH", "ro": "ROMANIAN"
 }
 
 @dataclass
