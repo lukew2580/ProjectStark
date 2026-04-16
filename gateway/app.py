@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from gateway.routes import chat, health, models, stats
 from gateway.routes import memory, skills, keys, websocket
-from gateway.routes import agents, bridge, xr, security
+from gateway.routes import agents, bridge, xr, security, virus
 from config import settings
 
 app = FastAPI(
@@ -36,6 +36,7 @@ app.include_router(agents.router)
 app.include_router(bridge.router)
 app.include_router(xr.router)
 app.include_router(security.router)
+app.include_router(virus.router)
 
 @app.on_event("startup")
 async def startup_event():
