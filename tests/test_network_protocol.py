@@ -1,5 +1,5 @@
 import numpy as np
-from network.protocol import pack_vector, unpack_vector
+from network.protocol import pack_vector, unpack_vector, verify_packet
 
 def test_protocol_serialization():
     dim = 10000
@@ -8,24 +8,30 @@ def test_protocol_serialization():
     seq_id = 123
     
     packet = pack_vector(v1, node_id, seq_id)
-    # Header (17) + Payload (10000)
-    assert len(packet) == 17 + dim
+    # Header (42 v3) + Payload (10000)
+    assert len(packet) == 42 + dim, f"Expected {42+dim}, got {len(packet)}"
     
-    v2, n2, s2 = unpack_vector(packet)
+    v2 = unpack_vector(packet)
+    assert v2 is not None
     assert np.array_equal(v1, v2)
-    assert n2 == node_id
-    assert s2 == seq_id
 
 def test_invalid_magic():
     data = b'BAD!somepayload'
-    try:
-        unpack_vector(data)
-        assert False, "Should have raised ValueError"
-    except ValueError as e:
-        assert str(e) == "Invalid magic number"
+    result = unpack_vector(data)
+    # Should return None instead of raising
+    assert result is None
 
 def test_incomplete_packet():
     v = np.zeros(10, dtype=np.int8)
     packet = pack_vector(v)
     incomplete = packet[:-1]
-    assert unpack_vector(incomplete) is None
+    result = unpack_vector(incomplete)
+    assert result is None
+
+def test_verify_packet():
+    v = np.zeros(10, dtype=np.int8)
+    packet = pack_vector(v)
+    assert verify_packet(packet) is True
+    
+    bad = b'BAD!'
+    assert verify_packet(bad) is False

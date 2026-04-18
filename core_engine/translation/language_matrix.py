@@ -14,15 +14,28 @@ from config.settings import DIMENSIONS
 
 
 LANGUAGE_CODES = {
+    # Core 20 (UN official languages + major)
     "en": "ENGLISH", "zh": "CHINESE", "es": "SPANISH", "hi": "HINDI",
     "ar": "ARABIC", "fr": "FRENCH", "bn": "BENGALI", "pt": "PORTUGUESE",
     "ru": "RUSSIAN", "ur": "URDU", "ja": "JAPANESE", "de": "GERMAN",
     "ko": "KOREAN", "it": "ITALIAN", "tr": "TURKISH", "vi": "VIETNAMESE",
     "ta": "TAMIL", "sw": "SWAHILI", "th": "THAI", "pl": "POLISH",
-    # Phase 2: Expanded languages (10 more)
+    # Phase 2 expansion (+10)
     "id": "INDONESIAN", "nl": "DUTCH", "sv": "SWEDISH", "da": "DANISH",
     "no": "NORWEGIAN", "fi": "FINNISH", "el": "GREEK", "he": "HEBREW",
-    "cs": "CZECH", "ro": "ROMANIAN"
+    "cs": "CZECH", "ro": "ROMANIAN",
+    # Phase 3 expansion (+25 — worldwide coverage)
+    "uk": "UKRAINIAN", "bg": "BULGARIAN", "hr": "CROATIAN", "sr": "SERBIAN",
+    "sk": "SLOVAK", "sl": "SLOVENIAN", "et": "ESTONIAN", "lt": "LITHUANIAN",
+    "lv": "LATVIAN", "hu": "HUNGARIAN", "fa": "PERSIAN", "ur": "URDU",
+    "ms": "MALAY", "km": "KHMER", "my": "BURMESE", "ne": "NEPALI",
+    "si": "SINHALA", "kk": "KAZAKH", "az": "AZERBAIJANI", "tg": "TAJIK",
+    "uz": "UZBEK", "mn": "MONGOLIAN", "ps": "PASHTO", "so": "SOMALI",
+    "ha": "HAUSA", "yo": "YORUBA", "ig": "IGBO", "am": "AMHARIC",
+    "zu": "ZULU", "af": "AFRIKAANS", "is": "ICELANDIC", "mt": "MALTESE",
+    "ga": "IRISH", "cy": "WELSH", "gd": "SCOTTISH_GAELIC", "lb": "LUXEMBOURGISH",
+    "sq": "ALBANIAN", "mk": "MACEDONIAN", "hy": "ARMENIAN", "ka": "GEORGIAN",
+    "tg": "TAJIK", "ur": "URDU", "ku": "KURDISH", "ps": "PASHTO",
 }
 
 @dataclass
@@ -141,7 +154,7 @@ class LanguageMatrix:
     def get_supported_languages(self) -> List[str]:
         return list(self.language_anchors.keys())
     
-    def dump_anchors(self) -> Dict[str, List[int]]:
+    def dump_anchors(self) -> Dict[str, str]:
         """Export anchors for serialization (not actual vectors, just metadata)."""
         return {
             code: lang_vec.name 

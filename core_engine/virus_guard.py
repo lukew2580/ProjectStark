@@ -140,7 +140,7 @@ class VirusDetector:
         
         actions = []
         
-        if best_similarity > 0.7:
+        if best_similarity > 0.7 and best_match is not None:
             status = DetectionStatus.INFECTED
             actions.append(f"Detected: {best_match.name}")
             actions.append(f"Category: {best_match.category.value}")
@@ -157,6 +157,7 @@ class VirusDetector:
         else:
             status = DetectionStatus.CLEAN
             actions.append("SCAN COMPLETE: No threats found")
+            best_match = None
         
         report = VirusReport(
             status=status,
@@ -270,7 +271,7 @@ class VirusEradicator:
     
     def __init__(self, detector: VirusDetector):
         self.detector = detector
-        self._actions_log: List[EadicationAction] = []
+        self._actions_log: List[EradicationAction] = []
     
     async def eradicate(self, virus_name: str, target: str) -> EradicationAction:
         """Attempt to eradicate a detected virus."""
@@ -440,7 +441,7 @@ class ScammerAttribution:
         self,
         software_hash: str,
         download_source: str = "",
-        user_system_info: Dict = None
+        user_system_info: Optional[Dict] = None
     ) -> AttributionReport:
         """Check software attribution against known scammer sources."""
         source_analysis = []
@@ -464,7 +465,7 @@ class ScammerAttribution:
                     threatIntel_matches.append({
                         "source": intel["type"],
                         "matched_pattern": pattern,
-                        "severity": "HIGH" if profile.risk_score > 0.7 else "MEDIUM"
+                        "severity": "HIGH"
                     })
         
         risk_level = "HIGH" if len(source_analysis) > 2 or len(threatIntel_matches) > 2 else "MEDIUM" if source_analysis else "LOW"
@@ -505,7 +506,7 @@ class ScammerAttribution:
     async def search_threat_intel(
         self,
         query: str,
-        sources: List[str] = None
+        sources: Optional[List[str]] = None
     ) -> List[Dict]:
         """Search threat intelligence for mentions."""
         results = []

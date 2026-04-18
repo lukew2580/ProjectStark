@@ -1,16 +1,10 @@
 """
-Hardwareless AI — Vector Generation
+Hardwareless AI — Vector Generation (Compatibility Layer)
+
+This module maintains the original API while delegating to the
+pluggable HDC backend system. DO NOT change import paths.
 """
-import numpy as np
-from typing import Optional
+from core_engine.brain.hdc import generate_random_vector
 
-
-def generate_random_vector(dimensions: int, seed: Optional[int] = None, rng: Optional[np.random.Generator] = None) -> np.ndarray:
-    """Generates a random D-dimensional bipolar vector."""
-    if seed is not None:
-        rng = np.random.default_rng(seed)
-    elif rng is None:
-        rng = np.random.default_rng()
-        
-    bits = rng.integers(0, 2, size=dimensions, dtype=np.uint8)
-    return np.where(bits, np.int8(1), np.int8(-1))
+# Re-export for backward compatibility
+__all__ = ["generate_random_vector"]

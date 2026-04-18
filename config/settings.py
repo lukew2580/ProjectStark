@@ -11,6 +11,17 @@ KNOWLEDGE_DIR = os.path.join(BASE_DIR, "config", "knowledge")
 # === Vector Space ===
 DIMENSIONS = 10_000  # Size of all hypervectors
 
+# === HDC Backend Configuration ===
+# Pluggable HDC backend system
+# Options: "auto" (best available), "legacy" (custom numpy), "torchhd" (GPU-accelerated)
+HDC_BACKEND = os.getenv("HDC_BACKEND", "auto").lower()
+# TorchHD-specific: "cuda" or "cpu"
+HDC_DEVICE = os.getenv("HDC_DEVICE", "cuda" if os.getenv("HDC_BACKEND") == "torchhd" else "cpu")
+# TorchHD model type: MAP, BSC, HRR, FHRR
+HDC_TORCHHD_MODEL = os.getenv("HDC_TORCHHD_MODEL", "MAP")
+# Force CPU even if GPU available?
+HDC_FORCE_CPU = os.getenv("HDC_FORCE_CPU", "0").lower() in ("1", "true", "yes")
+
 # === Data Flow Pipeline ===
 DEFAULT_NODE_COUNT = 5  # Number of nodes in the default pipeline
 

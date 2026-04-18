@@ -1,9 +1,24 @@
 """
-Hardwareless AI — Core HDC Operations
+Hardwareless AI — Core HDC Operations (Compatibility Layer)
+
+This module maintains the original API while delegating to the
+pluggable HDC backend system. DO NOT change import paths.
 """
 import numpy as np
-from typing import List, Optional
-from core_engine.brain.vectors import generate_random_vector
+from typing import List
+
+from core_engine.brain.hdc import get_backend
+
+# Backend reference for performance-critical sections
+_backend = None
+
+
+def _get_backend():
+    """Lazy-load the active backend."""
+    global _backend
+    if _backend is None:
+        _backend = get_backend()
+    return _backend
 
 
 def bind(vec_a: np.ndarray, vec_b: np.ndarray) -> np.ndarray:
@@ -12,26 +27,16 @@ def bind(vec_a: np.ndarray, vec_b: np.ndarray) -> np.ndarray:
     Creates a new vector that is dissimilar to both inputs,
     representing the *association* of two concepts.
     """
-    return (vec_a * vec_b).astype(np.int8)
+    return _get_backend().bind(vec_a, vec_b)
 
 
-def bundle(vectors: List[np.ndarray], dimensions: int, rng: Optional[np.random.Generator] = None) -> np.ndarray:
+def bundle(vectors: List[np.ndarray], dimensions: int, **kwargs) -> np.ndarray:
     """
     Bundling (element-wise majority vote).
     Creates a vector that is *similar* to all inputs,
     representing the *set* of concepts.
     """
-    if not vectors:
-        return np.zeros(dimensions, dtype=np.int8)
-    stacked = np.stack(vectors)
-    summed = stacked.sum(axis=0)
-    # Break ties randomly for even-count bundles
-    ties = (summed == 0)
-    result = np.where(summed > 0, np.int8(1), np.int8(-1))
-    if ties.any():
-        tie_breaks = generate_random_vector(dimensions, rng=rng)
-        result[ties] = tie_breaks[ties]
-    return result
+    return _get_backend().bundle(vectors, dimensions, **kwargs)
 
 
 def permute(vec: np.ndarray, shifts: int = 1) -> np.ndarray:
@@ -41,9 +46,9 @@ def permute(vec: np.ndarray, shifts: int = 1) -> np.ndarray:
     permute(vec, 1) is position 1, etc.
     This is the critical operation that makes "dog bites man" ≠ "man bites dog".
     """
-    return np.roll(vec, shifts).astype(np.int8)
+    return _get_backend().permute(vec, shifts)
 
 
 def similarity(vec_a: np.ndarray, vec_b: np.ndarray, dimensions: int) -> float:
     """Cosine similarity for bipolar vectors → normalized dot product."""
-    return float(np.dot(vec_a.astype(np.int32), vec_b.astype(np.int32))) / dimensions
+    return _get_backend().similarity(vec_a, vec_b, dimensions)

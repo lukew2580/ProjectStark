@@ -1,0 +1,15 @@
+apiVersion: v2
+name: hardwareless-ai
+description: Hardwareless AI – Hyperdimensional Computing Platform
+type: application
+version: 0.3.0
+appVersion: "0.3.0"
+keywords:
+  - ai
+  - hdc
+  - hyperdimensional
+  - fastapi
+  - swarm-intelligence
+home: https://hardwareless.ai
+sources:
+  - https://github.com/hardwareless-ai/hardwareless-ai

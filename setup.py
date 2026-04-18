@@ -27,6 +27,7 @@ setup(
     entry_points={
         "console_scripts": [
             "hardwareless=hardwareless.__main__:main",
+            "hw-phases=core_engine.setup_manager:main",
         ],
     },
     classifiers=[

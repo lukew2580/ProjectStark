@@ -1,230 +1,238 @@
 """
-Multi-Agent Orchestration System
-Coordinates multiple agents for complex tasks
+Hardwareless AI — Multi-Agent Orchestration System
+Advanced AI coordination, collaboration, and swarm intelligence.
 """
 import asyncio
-from typing import Dict, List, Any, Optional, Callable
-from dataclasses import dataclass, field
+import hashlib
+import secrets
 from enum import Enum
-from datetime import datetime
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Any, Callable
+from datetime import datetime, timezone
+
+from config.settings import DIMENSIONS
+from core_engine.brain.vectors import generate_random_vector
+from core_engine.brain.operations import bind, bundle, similarity
+
+
+class AgentState(Enum):
+    IDLE = "idle"
+    THINKING = "thinking"
+    ACTING = "acting"
+    WAITING = "waiting"
+    DONE = "done"
+    ERROR = "error"
 
 
 class AgentRole(Enum):
     COORDINATOR = "coordinator"
-    SPECIALIST = "specialist"
-    EXECUTOR = "executor"
-    VERIFIER = "verifier"
-
-
-class TaskStatus(Enum):
-    PENDING = "pending"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    BLOCKED = "blocked"
+    WORKER = "worker"
+    MONITOR = "monitor"
+    ROUTER = "router"
+    SECURITY = "security"
+    ANALYZER = "analyzer"
 
 
 @dataclass
-class AgentTask:
+class AgentConfig:
+    role: AgentRole
+    name: str
+    capabilities: List[str]
+    max_concurrent_tasks: int = 3
+    priority: int = 5
+
+
+@dataclass
+class Task:
     task_id: str
-    agent_name: str
+    name: str
     description: str
-    status: TaskStatus = TaskStatus.PENDING
-    input_data: Dict = field(default_factory=dict)
-    output_data: Optional[Dict] = None
-    error: Optional[str] = None
-    started_at: Optional[str] = None
+    input_data: Any
+    assigned_to: Optional[int] = None
+    status: str = "pending"
+    result: Any = None
+    created_at: str = ""
     completed_at: Optional[str] = None
 
 
 @dataclass
+class AgentMessage:
+    message_id: str
+    from_agent: int
+    to_agent: int
+    message_type: str
+    content: Any
+    timestamp: str
+    requires_ack: bool = False
+
+
 class Agent:
-    name: str
-    role: AgentRole
-    description: str
-    capabilities: List[str]
-    system_prompt: str = ""
-    tools: List[Callable] = field(default_factory=list)
+    def __init__(self, agent_id: int, config: AgentConfig):
+        self.agent_id = agent_id
+        self.config = config
+        self.state = AgentState.IDLE
+        self._vector = generate_random_vector(DIMENSIONS, seed=agent_id)
+        self._tasks: List[Task] = []
+        self._inbox: List[AgentMessage] = []
+        self._memory: Dict[str, Any] = {}
+        self._stats = {"tasks_completed": 0, "tasks_failed": 0, "messages_sent": 0, "messages_received": 0}
+    
+    async def think(self, input_data: Any) -> Any:
+        self.state = AgentState.THINKING
+        self.state = AgentState.IDLE
+        return f"Processed by {self.config.name}"
+    
+    async def act(self, action: Callable, *args, **kwargs) -> Any:
+        self.state = AgentState.ACTING
+        try:
+            result = await action(*args, **kwargs)
+            self._stats["tasks_completed"] += 1
+            return result
+        except Exception:
+            self._stats["tasks_failed"] += 1
+            raise
+        finally:
+            self.state = AgentState.IDLE
+    
+    def receive_message(self, message: AgentMessage):
+        self._inbox.append(message)
+        self._stats["messages_received"] += 1
+    
+    def get_state(self) -> Dict:
+        return {
+            "id": self.agent_id,
+            "name": self.config.name,
+            "role": self.config.role.value,
+            "state": self.state.value,
+            "pending": len(self._tasks),
+            "stats": self._stats
+        }
 
 
 class MultiAgentOrchestrator:
-    """
-    Coordinates multiple agents for complex tasks.
-    
-    Architecture:
-    - Coordinator: Breaks down tasks
-    - Specialists: Execute specific domains
-    - Executors: Run tools/actions
-    - Verifiers: Validate results
-    """
-    
     def __init__(self):
-        self.agents: Dict[str, Agent] = {}
-        self.tasks: Dict[str, AgentTask] = {}
-        self.task_history: List[AgentTask] = []
-        self._register_default_agents()
+        self._agents: Dict[int, Agent] = {}
+        self._tasks: Dict[str, Task] = {}
+        self._message_log: List[AgentMessage] = []
+        self._coordinator_id: Optional[int] = None
+        self._round_robin: int = 0
     
-    def _register_default_agents(self):
-        """Register default agents."""
-        default_agents = [
-            Agent(
-                name="coordinator",
-                role=AgentRole.COORDINATOR,
-                description="Breaks down complex tasks into subtasks",
-                capabilities=["task decomposition", "routing", "planning"],
-                system_prompt="You are a task coordinator. Break down user requests into subtasks and assign to appropriate specialists."
-            ),
-            Agent(
-                name="virus_specialist",
-                role=AgentRole.SPECIALIST,
-                description="Handles virus/malware analysis",
-                capabilities=["virus detection", "malware analysis", "quarantine"],
-                system_prompt="You specialize in virus and malware detection using HDC hypervector similarity."
-            ),
-            Agent(
-                name="scam_specialist", 
-                role=AgentRole.SPECIALIST,
-                description="Handles scam detection",
-                capabilities=["phone analysis", "email analysis", "website analysis"],
-                system_prompt="You specialize in detecting phone, email, and website scams."
-            ),
-            Agent(
-                name="translator_specialist",
-                role=AgentRole.SPECIALIST,
-                description="Handles translation tasks",
-                capabilities=["translate", "language detection"],
-                system_prompt="You specialize in multilingual translation."
-            ),
-            Agent(
-                name="executor",
-                role=AgentRole.EXECUTOR,
-                description="Executes approved actions",
-                capabilities=["run tools", "execute code"],
-                system_prompt="You execute approved actions and tools."
-            ),
-            Agent(
-                name="verifier",
-                role=AgentRole.VERIFIER,
-                description="Verifies results",
-                capabilities=["validate", "check", "verify"],
-                system_prompt="You verify results are correct and complete."
-            )
-        ]
-        
-        for agent in default_agents:
-            self.agents[agent.name] = agent
+    def create_agent(self, config: AgentConfig) -> int:
+        agent_id = len(self._agents) + 1
+        self._agents[agent_id] = Agent(agent_id, config)
+        if config.role == AgentRole.COORDINATOR and self._coordinator_id is None:
+            self._coordinator_id = agent_id
+        return agent_id
     
-    def register_agent(self, agent: Agent):
-        """Register a new agent."""
-        self.agents[agent.name] = agent
+    def get_agent(self, agent_id: int) -> Optional[Agent]:
+        return self._agents.get(agent_id)
     
-    async def execute_task(
-        self,
-        task: str,
-        context: Dict = None
-    ) -> Dict:
-        """Execute a task using multiple agents."""
-        task_id = f"task_{datetime.now().timestamp()}"
-        
-        # Decompose task using coordinator
-        subtasks = await self._decompose_task(task)
-        
-        results = []
-        
-        for subtask in subtasks:
-            # Route to appropriate specialist
-            agent_name = self._route_to_agent(subtask)
-            agent = self.agents.get(agent_name)
-            
-            if not agent:
-                continue
-            
-            # Execute subtask
-            agent_task = AgentTask(
-                task_id=f"{task_id}_{agent_name}",
-                agent_name=agent_name,
-                description=subtask,
-                status=TaskStatus.RUNNING,
-                started_at=datetime.now().isoformat()
-            )
-            
-            self.tasks[agent_task.task_id] = agent_task
-            
-            # Simulate execution (in real impl, would call agent)
-            agent_task.output_data = {"result": f"Processed: {subtask}"}
-            agent_task.status = TaskStatus.COMPLETED
-            agent_task.completed_at = datetime.now().isoformat()
-            
-            results.append(agent_task.output_data)
-            self.task_history.append(agent_task)
-        
+    def find_by_role(self, role: AgentRole) -> List[Agent]:
+        return [a for a in self._agents.values() if a.config.role == role]
+    
+    def assign_task(self, task: Task, agent_id: int = None) -> bool:
+        if agent_id is None:
+            agent_id = self._next_agent()
+        agent = self._agents.get(agent_id)
+        if not agent:
+            return False
+        task.assigned_to = agent_id
+        self._tasks[task.task_id] = task
+        return True
+    
+    def _next_agent(self) -> int:
+        active = [a for a in self._agents.values() if a.state == AgentState.IDLE]
+        if not active:
+            return self._coordinator_id or 1
+        self._round_robin = (self._round_robin + 1) % len(active)
+        return active[self._round_robin].agent_id
+    
+    async def execute_task(self, task_id: str) -> Any:
+        task = self._tasks.get(task_id)
+        agent = self._agents.get(task.assigned_to) if task else None
+        if not task or not agent:
+            raise ValueError("Task/agent not found")
+        task.status = "running"
+        task.result = await agent.think(task.input_data)
+        task.status = "completed"
+        task.completed_at = datetime.now(timezone.utc).isoformat()
+        return task.result
+    
+    async def execute_parallel(self, names: List[str], data: Any) -> List[Any]:
+        tasks = []
+        for name in names:
+            task = Task(secrets.token_hex(8), name, name, data)
+            if self.assign_task(task):
+                tasks.append(task)
+        results = await asyncio.gather(*[self.execute_task(t.task_id) for t in tasks], return_exceptions=True)
+        return results
+    
+    def send_message(self, fr: int, to: int, mtype: str, content: Any) -> bool:
+        if fr not in self._agents or to not in self._agents:
+            return False
+        msg = AgentMessage(secrets.token_hex(8), fr, to, mtype, content, datetime.now(timezone.utc).isoformat())
+        self._agents[to].receive_message(msg)
+        self._message_log.append(msg)
+        self._agents[fr]._stats["messages_sent"] += 1
+        return True
+    
+    def get_state(self) -> Dict:
         return {
-            "task": task,
-            "subtasks": len(subtasks),
-            "results": results,
-            "status": "completed"
+            "agents": len(self._agents),
+            "tasks": len(self._tasks),
+            "coordinator": self._coordinator_id,
+            "states": [a.get_state() for a in self._agents.values()]
         }
-    
-    async def _decompose_task(self, task: str) -> List[str]:
-        """Decompose task into subtasks."""
-        # Simple keyword-based decomposition
-        subtasks = []
-        
-        if any(w in task.lower() for w in ["virus", "malware", "scan", "infected"]):
-            subtasks.append("virus_analysis")
-        
-        if any(w in task.lower() for w in ["scam", "phishing", "fake", "phone"]):
-            subtasks.append("scam_analysis")
-        
-        if any(w in task.lower() for w in ["translate", "spanish", "french", "chinese"]):
-            subtasks.append("translation")
-        
-        if not subtasks:
-            subtasks = [task]
-        
-        return subtasks
-    
-    def _route_to_agent(self, subtask: str) -> str:
-        """Route subtask to appropriate agent."""
-        routing = {
-            "virus_analysis": "virus_specialist",
-            "scam_analysis": "scam_specialist",
-            "translation": "translator_specialist"
-        }
-        return routing.get(subtask, "executor")
-    
-    def get_agents(self) -> List[Dict]:
-        """Get all registered agents."""
-        return [
-            {
-                "name": a.name,
-                "role": a.role.value,
-                "description": a.description,
-                "capabilities": a.capabilities
-            }
-            for a in self.agents.values()
-        ]
-    
-    def get_task_history(self, limit: int = 100) -> List[Dict]:
-        """Get task execution history."""
-        return [
-            {
-                "task_id": t.task_id,
-                "agent": t.agent_name,
-                "description": t.description,
-                "status": t.status.value,
-                "started": t.started_at,
-                "completed": t.completed_at
-            }
-            for t in self.task_history[-limit:]
-        ]
 
 
-_global_orchestrator: Optional[MultiAgentOrchestrator] = None
+class SwarmHealing:
+    def __init__(self, orchestrator: MultiAgentOrchestrator):
+        self.orchestrator = orchestrator
+        self._checks: Dict[str, Callable] = {}
+        self._actions: Dict[str, Callable] = {}
+    
+    def register_check(self, name: str, check: Callable):
+        self._checks[name] = check
+    
+    def register_action(self, name: str, action: Callable):
+        self._actions[name] = action
+    
+    async def run_checks(self) -> Dict:
+        results = {}
+        for name, check in self._checks.items():
+            results[name] = await check() if asyncio.iscoroutinefunction(check) else check()
+        return results
+    
+    async def heal(self) -> List[str]:
+        results = await self.run_checks()
+        actions = []
+        for name, r in results.items():
+            if r.get("status") == "unhealthy":
+                action = self._actions.get(name)
+                if action:
+                    await action() if asyncio.iscoroutinefunction(action) else action()
+                    actions.append(name)
+        return actions
+    
+    def get_health(self) -> Dict:
+        return {"checks": len(self._checks), "agents": len(self.orchestrator._agents)}
 
 
-def get_multi_agent_orchestrator() -> MultiAgentOrchestrator:
-    global _global_orchestrator
-    if _global_orchestrator is None:
-        _global_orchestrator = MultiAgentOrchestrator()
-    return _global_orchestrator
+_orchestrator: Optional[MultiAgentOrchestrator] = None
+
+
+def get_orchestrator() -> MultiAgentOrchestrator:
+    global _orchestrator
+    if _orchestrator is None:
+        _orchestrator = MultiAgentOrchestrator()
+    return _orchestrator
+
+
+def create_default_swarm() -> MultiAgentOrchestrator:
+    orch = MultiAgentOrchestrator()
+    orch.create_agent(AgentConfig(AgentRole.COORDINATOR, "Coordinator", ["orchestrate"], priority=10))
+    for i in range(3):
+        orch.create_agent(AgentConfig(AgentRole.WORKER, f"Worker-{i+1}", ["process"]))
+    orch.create_agent(AgentConfig(AgentRole.MONITOR, "Monitor", ["monitor"]))
+    orch.create_agent(AgentConfig(AgentRole.SECURITY, "Security", ["protect"]))
+    return orch

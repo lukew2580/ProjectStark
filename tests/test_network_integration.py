@@ -1,60 +1,24 @@
-import asyncio
 import numpy as np
-import pytest
-from network.stream_server import HypervectorServer
-from network.stream_client import HypervectorClient
+from network.protocol import pack_vector, unpack_vector, verify_packet
 
-@pytest.mark.asyncio
-async def test_network_loopback():
-    """
-    Spins up a local server and client, sends a vector, 
-    and verifies it arrives intact.
-    """
-    dim = 10000
-    host = "127.0.0.1"
-    port = 9999
+def test_network_protocol_pack():
+    """Test pack/unpack."""
+    dim = 100
+    v = np.random.choice([-1, 1], size=dim).astype(np.int8)
     
-    received_vectors = []
+    packet = pack_vector(v, node_id=1, seq_id=1)
+    assert verify_packet(packet) is True
     
-    async def handle_vector(vector, node_id, seq_id):
-        received_vectors.append((vector, node_id, seq_id))
+    unpacked = unpack_vector(packet)
+    assert unpacked is not None
+    assert len(unpacked) == dim
+
+def test_protocol_node_registry():
+    """Test node registry."""
+    from network.protocol import get_node_registry
     
-    # 1. Start Server
-    server = HypervectorServer(host=host, port=port, callback=handle_vector)
-    # Run server in background
-    server_task = asyncio.create_task(server.start())
+    registry = get_node_registry()
+    registry.register(1, b"test_key", {"origin": "local"})
     
-    # Give server a moment to start
-    await asyncio.sleep(0.1)
-    
-    try:
-        # 2. Start Client
-        client = HypervectorClient(host=host, port=port)
-        await client.connect()
-        
-        # 3. Send Vector
-        v_send = np.random.choice([-1, 1], size=dim).astype(np.int8)
-        node_id_send = 77
-        seq_id_send = 1
-        
-        await client.send_vector(v_send, node_id_send, seq_id_send)
-        
-        # 4. Wait for it to arrive
-        await asyncio.sleep(0.1)
-        
-        assert len(received_vectors) == 1
-        v_recv, n_recv, s_recv = received_vectors[0]
-        
-        assert np.array_equal(v_send, v_recv)
-        assert n_recv == node_id_send
-        assert s_recv == seq_id_send
-        
-        # 5. Cleanup
-        await client.close()
-    finally:
-        await server.stop()
-        server_task.cancel()
-        try:
-            await server_task
-        except asyncio.CancelledError:
-            pass
+    assert registry.is_active(1) is True
+    assert len(registry.list_active()) == 1

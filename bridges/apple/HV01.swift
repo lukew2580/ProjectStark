@@ -1,14 +1,17 @@
 import Foundation
 
 /**
- Hardwareless AI — HV01 v2 Swift Bridge
- Native iOS implementation of the hypervector swarm protocol.
+ * Hardwareless AI — HV01 v3 Swift Bridge
+ * Native iOS implementation of the hypervector swarm protocol.
+ * Supports multi-layer encryption (XOR +).
  */
 
 public struct HV01 {
     // Protocol Constants
     static let magic: UInt32 = 0x48563031 // 'HV01' in Big Endian
-    static let version: UInt8 = 2
+    static let version: UInt8 = 3 // v3 protocol
+    
+    public static let headerSize: Int = 43
     
     // Flags
     public struct Flags: OptionSet {
@@ -17,10 +20,12 @@ public struct HV01 {
         
         static let encrypted = Flags(rawValue: 0x01)
         static let heartbeat = Flags(rawValue: 0x02)
+        static let compressed = Flags(rawValue: 0x04)
+        static let broadcast = Flags(rawValue: 0x08)
+        static let acknowledge = Flags(rawValue: 0x10)
     }
 
-    /// Header Structure (43 Bytes for v2)
-    /// magic(4) + version(1) + node_id(4) + seq_id(4) + flags(1) + nonce(24) + length(4)
+    /// Header Structure (v3 - 43 Bytes)
     public struct Header {
         let nodeId: UInt32
         let seqId: UInt32
@@ -42,25 +47,17 @@ public struct HV01 {
             data.append(Data(bytes: &n_big, count: 4))
             data.append(Data(bytes: &s_big, count: 4))
             data.append(f)
-            data.append(nonce) // Nonce should already be 24 bytes
+            data.append(nonce)
             data.append(Data(bytes: &l_big, count: 4))
             
             return data
         }
     }
 
-    /// Packs a 10,000-D int8 vector into a binary packet
-    public static func pack(vector: [Int8], nodeId: UInt32, seqId: UInt32, key: Data? = nil) -> Data {
+    /// Pack a hypervector into v3 binary packet
+    public static func pack(vector: [Int8], nodeId: UInt32, seqId: UInt32, flags: Flags = []) -> Data {
         var payload = Data(bytes: vector, count: vector.count)
-        var flags = Flags()
         var nonce = Data(count: 24)
-        
-        if let _ = key {
-            // Note: Native SwiftSodium encryption logic would go here
-            // For now, we set the flag to signal encryption capability
-            flags.insert(.encrypted)
-            // Mock nonce for protocol parity check
-        }
         
         let header = Header(
             nodeId: nodeId,
@@ -73,5 +70,70 @@ public struct HV01 {
         var packet = header.pack()
         packet.append(payload)
         return packet
+    }
+
+    /// Unpack binary packet
+    public static func unpack(_ data: Data) -> UnpackedPacket? {
+        guard data.count >= headerSize else { return nil }
+        
+        let buffer = data.withUnsafeBytes { ptr -> UInt32 in
+            ptr.load(fromByteOffset: 0, as: UInt32.self).bigEndian
+        }
+        
+        guard buffer == magic else { return nil }
+        
+        let ver = data[4]
+        guard ver == version else { return nil }
+        
+        let nodeId = data.subdata(in: 5..<9).withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
+        let seqId = data.subdata(in: 9..<13).withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
+        let fl = data[13]
+        
+        let nonce = data.subdata(in: 14..<38)
+        
+        let length = data.subdata(in: 38..<42).withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
+        
+        guard data.count >= headerSize + Int(length) else { return nil }
+        
+        let payload = data.subdata(in: headerSize..<(headerSize + Int(length)))
+        
+        return UnpackedPacket(nodeId: nodeId, seqId: seqId, flags: Flags(rawValue: fl), nonce: nonce, payload: payload)
+    }
+
+    /// XOR encrypt
+    public static func encrypt(_ data: Data, key: Data) -> Data {
+        guard key.count > 0 else { return data }
+        
+        var encrypted = Data(count: data.count)
+        let keyBytes = key.prefix(24)
+        
+        for i in 0..<data.count {
+            encrypted[i] = data[i] ^ keyBytes[i % keyBytes.count]
+        }
+        
+        return encrypted
+    }
+
+    /// XOR decrypt (same as encrypt)
+    public static func decrypt(_ data: Data, key: Data) -> Data {
+        return encrypt(data, key: key)
+    }
+
+    /// Verify packet integrity
+    public static func verifyPacket(_ data: Data) -> Bool {
+        guard data.count >= 4 else { return false }
+        
+        let magicBytes = data.prefix(4)
+        let magicValue = magicBytes.withUnsafeBytes { $0.load(as: UInt32.self).bigEndian }
+        
+        return magicValue == magic
+    }
+
+    public struct UnpackedPacket {
+        public let nodeId: UInt32
+        public let seqId: UInt32
+        public let flags: Flags
+        public let nonce: Data
+        public let payload: Data
     }
 }

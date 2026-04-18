@@ -1,0 +1,189 @@
+# Hardwareless AI — Kubernetes Manifests
+# Includes Deployment, Service, HPA, ConfigMap, Secret, Ingress
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hardwareless-ai
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hdc-config
+  namespace: hardwareless-ai
+data:
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "INFO"
+  HDC_BACKEND: "legacy-numpy"
+  DEFAULT_NODE_COUNT: "17"
+  CORS_ALLOW_ORIGINS: "https://app.hardwareless.ai"
+  SECURITY_HEADERS_ENABLED: "1"
+  INPUT_VALIDATION_ENABLED: "1"
+  ENABLE_REQUEST_SIGNING: "1"
+  ENABLE_GRAPHQL: "1"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: hdc-secrets
+  namespace: hardwareless-ai
+type: Opaque
+stringData:
+  # Override with real values via `kubectl create secret generic hdc-secrets ...`
+  REQUEST_SIGNING_SECRET: "change-me-in-prod"
+  # Optional vault credentials
+  # VAULT_TOKEN: ""
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hdc-gateway
+  namespace: hardwareless-ai
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: hdc-gateway
+  template:
+    metadata:
+      labels:
+        app: hdc-gateway
+    spec:
+      containers:
+      - name: gateway
+        image: hardwarelessai/gateway:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+          name: http
+        - containerPort: 50051
+          name: grpc
+        envFrom:
+        - configMapRef:
+            name: hdc-config
+        - secretRef:
+            name: hdc-secrets
+        env:
+        - name: HOST
+          value: "0.0.0.0"
+        - name: PORT
+          value: "8000"
+        resources:
+          limits:
+            cpu: "2"
+            memory: "2Gi"
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        volumeMounts:
+        - name: data
+          mountPath: /data
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: hdc-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hdc-gateway
+  namespace: hardwareless-ai
+spec:
+  selector:
+    app: hdc-gateway
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8000
+  type: LoadBalancer
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hdc-gateway-hpa
+  namespace: hardwareless-ai
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hdc-gateway
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 30
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hdc-data-pvc
+  namespace: hardwareless-ai
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard
+---
+# Optional Ingress (if you have ingress controller)
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: hdc-ingress
+#   namespace: hardwareless-ai
+#   annotations:
+#     nginx.ingress.kubernetes.io/ssl-redirect: "true"
+# spec:
+#   tls:
+#   - hosts:
+#     - api.hardwareless.ai
+#     secretName: tls-secret
+#   rules:
+#   - host: api.hardwareless.ai
+#     http:
+#       paths:
+#       - path: /
+#         pathType: Prefix
+#         backend:
+#           service:
+#             name: hdc-gateway
+#             port:
+#               number: 80

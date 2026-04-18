@@ -61,7 +61,7 @@ class DataFlowNode:
         The node 'Binds' its expert identity into the flowing hypervector.
         """
         t0 = time.perf_counter_ns()
-        from core_engine.brain.learning import bind
+        from core_engine.brain import bind  # Uses backend-aware bind
 
         if self.sparse:
             # Sparse Binding: only XOR-bind where the transformation is active
