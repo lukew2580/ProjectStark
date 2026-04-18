@@ -3,9 +3,12 @@ Hardwareless AI — Brain Integration Layer
 Weaves translation matrix into the hypervector brain
 """
 import asyncio
+import logging
 from typing import Optional, Dict, List, Any, Tuple
 from dataclasses import dataclass
 import numpy as np
+
+logger = logging.getLogger("hardwareless.brain")
 
 from core_engine.brain.vectors import generate_random_vector
 from core_engine.brain.operations import bind, bundle, similarity, permute
@@ -73,7 +76,12 @@ class BrainWeave:
                     input_text, detected_lang, target_lang
                 )
                 target_text = result.text
-            except Exception:
+            except RuntimeError as e:
+                if "Circuit" in str(e) or "rate limit" in str(e):
+                    logger.warning(f"Translation service unavailable: {e}")
+                target_text = self._decode_approximation(hypervector, target_lang)
+            except Exception as e:
+                logger.error(f"Unexpected translation error: {e}")
                 target_text = self._decode_approximation(hypervector, target_lang)
         else:
             target_text = self._decode_approximation(hypervector, target_lang)

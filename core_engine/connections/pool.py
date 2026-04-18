@@ -6,7 +6,7 @@ Enables connection reuse, limits concurrency, provides health checks.
 
 import asyncio
 import logging
-from typing import Dict, Optional, Any, AsyncContextManager
+from typing import Dict, Optional, Any, AsyncContextManager, List
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 import time
@@ -101,10 +101,10 @@ class ConnectionPool(ABC):
         
         logger.info(f"Connection pool shut down: created={self._created_count}, closed={self._closed_count}")
     
-    @abstractmethod
     async def _create_connection(self) -> PooledConnection:
-        """Create a new raw connection and wrap it."""
-        pass
+        """Create a new raw connection and wrap it (default implementation)."""
+        raw = await self._create_single_connection()
+        return self._wrap(raw)
     
     @abstractmethod
     async def _validate_connection(self, conn: PooledConnection) -> bool:

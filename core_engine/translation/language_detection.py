@@ -20,8 +20,7 @@ class LanguageDetector:
     
     def __init__(self, dimensions: int = DIMENSIONS):
         self.dimensions = dimensions
-        self._language_vectors: Dict[str, float] = {}
-        self._ngram fingerprints = self._init_ngrams()
+        self._ngram_fingerprints = self._init_ngrams()
     
     def _init_ngrams(self) -> Dict[str, Dict[str, float]]:
         """Initialize language fingerprints (n-gram distributions)."""

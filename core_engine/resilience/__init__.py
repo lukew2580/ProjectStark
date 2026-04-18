@@ -168,11 +168,11 @@ class CircuitBreakerMiddleware:
                 result = await func(*args, **kwargs)
                 self.breaker.record_success()
                 return result
-            except self.breaker.config.expected_exception as e:
-                self.breaker.record_failure()
-                raise
             except asyncio.TimeoutError as e:
                 self.breaker.record_timeout()
+                raise
+            except self.breaker.config.expected_exception as e:
+                self.breaker.record_failure()
                 raise
         
         # Attach breaker for introspection
@@ -228,7 +228,11 @@ class FallbackChain(Generic[T]):
 class Bulkhead:
     """
     Limits concurrent executions of a critical section.
-    Uses asyncio.Semaphore. Rejects when full (fast-fail).
+    Uses asyncio.Semaphore. Rejects when full (fast-fail) or when queue limit exceeded.
+    
+    Semantics:
+    - max_concurrent: maximum number of concurrent executions.
+    - max_queue_size: if None, unlimited waiters (blocking); if 0, reject immediately when full; if >0, allow up to that many waiters (blocking), reject when queue full.
     """
     
     def __init__(
@@ -237,26 +241,43 @@ class Bulkhead:
         max_queue_size: Optional[int] = None,
     ):
         self.max_concurrent = max_concurrent
-        self._semaphore = asyncio.Semaphore(max_concurrent)
+        self._semaphore: Optional[asyncio.Semaphore] = None  # created lazily on first acquire
         self._queue_size = max_queue_size
         self._current = 0
+        self._waiting = 0
         self._rejected = 0
     
     async def acquire(self) -> bool:
         """
         Try to acquire a bulkhead slot.
-        Returns False if at capacity and queue full (immediate reject).
+        Returns True if acquired, False if rejected (no capacity and queue full).
         """
-        if self._queue_size is not None and self._current >= self._queue_size:
+        # Lazy semaphore creation to allow Bulkhead instantiation outside event loop
+        if self._semaphore is None:
+            self._semaphore = asyncio.Semaphore(self.max_concurrent)
+        
+        # Fast path: check if a permit is immediately available
+        if self._semaphore._value > 0:
+            await self._semaphore.acquire()
+            self._current += 1
+            return True
+        
+        # No immediate permit
+        # Check queue limit if configured
+        if self._queue_size is not None and self._waiting >= self._queue_size:
             self._rejected += 1
             return False
         
+        # Wait for a permit (blocking)
+        self._waiting += 1
         try:
             await self._semaphore.acquire()
             self._current += 1
             return True
         except asyncio.CancelledError:
             raise
+        finally:
+            self._waiting -= 1
     
     def release(self):
         self._semaphore.release()
@@ -367,11 +388,14 @@ def create_guarded_backend(
     breaker = CircuitBreaker(backend_name, config=breaker_config)
     register_circuit_breaker(backend_name, breaker)
     
-    bulkhead = Bulkhead(max_concurrent=bulkhead_max)
+    bulkhead = Bulkhead(max_concurrent=bulkhead_max, max_queue_size=0)
     register_bulkhead(backend_name, bulkhead)
     
-    # Wrap with breaking
-    @CircuitBreakerMiddleware(backend_name, breaker_config)
+    # Create middleware with the same breaker instance to ensure state consistency
+    middleware = CircuitBreakerMiddleware(backend_name, breaker_config)
+    middleware.breaker = breaker  # use the registered breaker
+    
+    @middleware
     async def guarded(*args, **kwargs):
         # Bulkhead check
         if not await bulkhead.acquire():

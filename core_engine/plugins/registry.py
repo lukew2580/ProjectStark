@@ -57,7 +57,7 @@ class PluginRegistry:
         self._manifests[manifest.name] = manifest
         logger.debug(f"Registered plugin manifest: {manifest.name} v{manifest.version}")
     
-    def load_plugin(self, plugin_class: type, manifest: PluginManifest, config: Dict[str, Any]) -> PluginLoadResult:
+    async def load_plugin(self, plugin_class: type, manifest: PluginManifest, config: Dict[str, Any]) -> PluginLoadResult:
         """
         Instantiate and initialize a plugin.
         Returns load result with success/error details.
@@ -85,9 +85,7 @@ class PluginRegistry:
                 return result
             
             # Call async initialize
-            import asyncio
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(plugin.initialize())
+            await plugin.initialize()
             
             plugin.set_active()
             self._plugins[manifest.name] = plugin
@@ -232,7 +230,7 @@ def discover_plugins_via_entry_points() -> List[PluginManifest]:
     return discovered
 
 
-def load_plugin_from_path(plugin_path: str, manifest: PluginManifest, config: Dict[str, Any]) -> PluginLoadResult:
+async def load_plugin_from_path(plugin_path: str, manifest: PluginManifest, config: Dict[str, Any]) -> PluginLoadResult:
     """
     Load a plugin from a filesystem path (editable development mode).
     Adds the plugin directory to sys.path and imports the class.
@@ -253,7 +251,7 @@ def load_plugin_from_path(plugin_path: str, manifest: PluginManifest, config: Di
         if not inspect.isclass(plugin_class) or not issubclass(plugin_class, BasePlugin):
             raise TypeError(f"{plugin_class} is not a BasePlugin subclass")
         
-        result = load_plugin(plugin_class, manifest, config)
+        result = await load_plugin(plugin_class, manifest, config)
         
     except Exception as e:
         result.error = str(e)

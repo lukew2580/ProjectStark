@@ -3,13 +3,18 @@ Hardwareless AI — LibreTranslate Backend
 Open source, self-hosted, 40+ languages
 """
 import asyncio
-from typing import Optional
+import random
+import logging
+from typing import Optional, Any, Dict
+from contextlib import asynccontextmanager
 
 try:
     import aiohttp
     AIOHTTP_AVAILABLE = True
 except ImportError:
     AIOHTTP_AVAILABLE = False
+
+logger = logging.getLogger("hardwareless.resilience")
 
 from ..registry import BackendType, TranslationResult
 
@@ -28,18 +33,33 @@ class LibreTranslateBackend:
         self.endpoint = endpoint
         self.timeout = timeout
         self._session = None
+        
+        # Circuit breaker for resilience
+        from core_engine.resilience import CircuitBreaker, CircuitBreakerConfig, CircuitBreakerMiddleware
+        self._breaker = CircuitBreaker(
+            "libretranslate",
+            CircuitBreakerConfig(
+                failure_threshold=5,
+                recovery_timeout_seconds=60.0,
+                slow_call_threshold_seconds=10.0
+            )
+        )
+        self._breaker_middleware = CircuitBreakerMiddleware("libretranslate")
+        # Wrap raw translate with circuit breaker
+        self._translate_guarded = self._breaker_middleware(self.translate_raw)
 
     async def _get_session(self):
         if self._session is None or self._session.closed:
             self._session = aiohttp.ClientSession()
         return self._session
 
-    async def translate(
+    async def translate_raw(
         self,
         text: str,
         source_lang: str = "auto",
         target_lang: str = "en"
     ) -> TranslationResult:
+        """Raw translate with retry/backoff — called through circuit breaker."""
         try:
             session = await self._get_session()
             
@@ -50,23 +70,50 @@ class LibreTranslateBackend:
                 "format": "text"
             }
 
-            async with session.post(
-                f"{self.endpoint}/translate",
-                json=payload,
-                timeout=aiohttp.ClientTimeout(total=self.timeout)
-            ) as resp:
-                if resp.status != 200:
-                    raise Exception(f"LibreTranslate returned {resp.status}")
-                
-                data = await resp.json()
-                return TranslationResult(
-                    text=data.get("translatedText", text),
-                    source_lang=source_lang,
-                    target_lang=target_lang,
-                    backend=BackendType.LIBRETRANSLATE.value
-                )
-        except aiohttp.ClientError as e:
-            raise Exception(f"LibreTranslate connection failed: {e}")
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    async with session.post(
+                        f"{self.endpoint}/translate",
+                        json=payload,
+                        timeout=aiohttp.ClientTimeout(total=self.timeout)
+                    ) as resp:
+                        if resp.status == 429:
+                            if attempt == max_retries - 1:
+                                logger.warning(
+                                    f"LibreTranslate rate limit exceeded for '{text[:50]}...' after {max_retries} retries"
+                                )
+                                raise Exception(f"LibreTranslate rate limit exceeded")
+                            
+                            base_delay = 2 ** attempt
+                            jitter = random.uniform(0, 1)
+                            delay = base_delay + jitter
+                            await asyncio.sleep(delay)
+                            continue
+                        
+                        if resp.status != 200:
+                            logger.warning(
+                                f"LibreTranslate returned status {resp.status} for '{text[:50]}...'"
+                            )
+                            raise Exception(f"LibreTranslate returned {resp.status}")
+                        
+                        data = await resp.json()
+                        return TranslationResult(
+                            text=data.get("translatedText", text),
+                            source_lang=source_lang,
+                            target_lang=target_lang,
+                            backend=BackendType.LIBRETRANSLATE.value
+                        )
+                except asyncio.TimeoutError:
+                    if attempt == max_retries - 1:
+                        raise
+                    jitter = random.uniform(0, 1)
+                    await asyncio.sleep(1 + jitter)
+                except aiohttp.ClientError as e:
+                    if attempt == max_retries - 1:
+                        raise Exception(f"LibreTranslate connection failed: {e}")
+                    jitter = random.uniform(0, 1)
+                    await asyncio.sleep(1 + jitter)
         except Exception as e:
             return TranslationResult(
                 text=text,
@@ -75,6 +122,15 @@ class LibreTranslateBackend:
                 backend=BackendType.LIBRETRANSLATE.value,
                 confidence=0.0
             )
+    
+    async def translate(
+        self,
+        text: str,
+        source_lang: str = "auto",
+        target_lang: str = "en"
+    ) -> TranslationResult:
+        """Public translate method protected by circuit breaker."""
+        return await self._translate_guarded(text, source_lang, target_lang)
 
     async def get_languages(self) -> list:
         session = await self._get_session()

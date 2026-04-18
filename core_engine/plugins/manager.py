@@ -94,7 +94,7 @@ class PluginManager:
             if a < b: return -1
         return 0
     
-    def load_all(self, config: Optional[Dict[str, Any]] = None) -> List[PluginLoadResult]:
+    async def load_all(self, config: Optional[Dict[str, Any]] = None) -> List[PluginLoadResult]:
         """
         Discover and load all plugins in dependency order.
         Config keyed by plugin name: {"plugin_name": {"config_key": "value"}}
@@ -137,7 +137,7 @@ class PluginManager:
                 logger.warning(f"No entry point for {manifest.name}, skipping")
                 continue
             
-            result = self.registry.load_plugin(plugin_class, manifest, plugin_config)
+            result = await self.registry.load_plugin(plugin_class, manifest, plugin_config)
             results.append(result)
         
         # Log summary
@@ -146,7 +146,7 @@ class PluginManager:
         
         return results
     
-    def load_from_path(self, path: str, config: Optional[Dict[str, Any]] = None) -> PluginLoadResult:
+    async def load_from_path(self, path: str, config: Optional[Dict[str, Any]] = None) -> PluginLoadResult:
         """
         Load a single plugin directly from a path (dev mode).
         """
@@ -163,7 +163,7 @@ class PluginManager:
             data = json.load(f)
         manifest = PluginManifest.from_dict(data)
         
-        return load_plugin_from_path(path, manifest, config)
+        return await load_plugin_from_path(path, manifest, config)
     
     def get_plugin(self, name: str) -> Optional[BasePlugin]:
         """Retrieve loaded plugin by name."""
@@ -184,32 +184,32 @@ class PluginManager:
         """Gracefully shut down all plugins."""
         await self.registry.shutdown_all()
     
-    def aggregate_health(self) -> Dict[str, Any]:
+    async def aggregate_health(self) -> Dict[str, Any]:
         """
         Aggregate health status across all active plugins.
         Returns nested dict: {plugin_name: {state: ..., healthy: bool, ...}}
         """
-        health = {}
-        for name, plugin in self._registry._plugins.items():
+        plugins = list(self._registry._plugins.items())
+        if not plugins:
+            return {"plugins": {}, "summary": {"active": 0, "total": 0, "healthy_ratio": "0/0"}}
+
+        async def check_plugin(name: str, plugin: BasePlugin) -> Dict[str, Any]:
             try:
-                h = plugin.health_check()
+                h = await plugin.health_check()
                 if isinstance(h, dict):
-                    health[name] = h
-                else:
-                    # Fallback if plugin returns non-dict
-                    health[name] = {"plugin": name, "state": plugin.state.value, "healthy": plugin.is_active}
+                    return h
+                return {"plugin": name, "state": plugin.state.value, "healthy": plugin.is_active}
             except Exception as e:
-                health[name] = {
-                    "plugin": name,
-                    "state": "error",
-                    "healthy": False,
-                    "error": str(e),
-                }
-        
-        # Compute overall
+                return {"plugin": name, "state": "error", "healthy": False, "error": str(e)}
+
+        tasks = [check_plugin(name, plugin) for name, plugin in plugins]
+        results = await asyncio.gather(*tasks)
+
+        health = {name: result for (name, _), result in zip(plugins, results)}
+
         active_count = sum(1 for v in health.values() if v.get("healthy"))
         total_count = len(health)
-        
+
         return {
             "plugins": health,
             "summary": {

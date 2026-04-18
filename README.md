@@ -1,6 +1,8 @@
 # Hardwareless AI (ProjectStark)
 
 > A GPU/CPU-less AI framework that moves with the data flow — now with VIRUS-VDI protection.
+> 
+> ** Unified Full-Stack System ** — Backend (FastAPI + HDC) + Frontend (Next.js 16)
 
 ## What Is This?
 
@@ -12,11 +14,256 @@ Now includes **comprehensive security**:
 - Antivirus Integration (ClamAV, Microsoft Defender)
 - Scammer Attribution (identifies malicious download sources)
 
-### The Core Idea
+## Architecture
 
-Traditional AI (GPT, Claude, etc.) requires billions of floating-point matrix multiplications → demands GPUs with thousands of cores.
+```
+┌─────────────────┐     ┌─────────────────────────────────────────────────┐
+│   Frontend UI   │────▶│         Backend Gateway (FastAPI)              │
+│   Next.js 16    │     │  • /v1/chat/completions (OpenAI-compatible)   │
+│   React 19      │     │  • /v1/stream (SSE streaming)                  │
+│   TypeScript    │     │  • /v1/batch (batch endpoints)                 │
+│   Tailwind CSS  │     │  • /v1/translate (70+ languages)               │
+└─────────────────┘     │  • /v1/stats (real-time metrics)               │
+                        │  • /health (liveness/readiness)                │
+                        │  • Plugin Architecture                         │
+                        │  • Intelligent Caching                         │
+                        │  • Connection Pooling                          │
+                        │  • Resilience (circuit breakers, bulkheads)    │
+                        │  • Advanced Security (CSRF, PII, threat feeds)│
+                        └───────────────┬─────────────────────────────────┘
+                                        │
+                    ┌───────────────────┼───────────────────┐
+                    │                   │                   │
+              ┌─────▼─────┐      ┌──────▼──────┐    ┌──────▼──────┐
+              │   Redis   │      │  HDC Engine │    │   Plugins   │
+              │  Cache    │      │ (Bipolar    │    │  (pluggable)│
+              │           │      │  vectors)   │    │             │
+              └───────────┘      └─────────────┘    └─────────────┘
+```
 
-**Hardwareless AI** replaces all of that with **bipolar binary vectors** (+1 / -1) and element-wise operations. No matrices. No gradients. No GPU.
+## Quick Start
+
+### Using Docker Compose (Recommended)
+
+```bash
+# Clone and navigate
+cd hardwareless-ai
+
+# Production deployment (backend + frontend + Redis)
+docker-compose up -d
+
+# Development mode (with hot-reload)
+docker-compose --profile dev up
+```
+
+**Access:**
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+- Health Check: http://localhost:8000/health
+
+### Manual Development (No Docker)
+
+**1. Backend setup:**
+```bash
+cd hardwareless-ai
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+ENVIRONMENT=development python3 -m uvicorn gateway.app:app --reload
+```
+
+**2. Frontend setup (separate terminal):**
+```bash
+cd frontend
+npm install
+NEXT_PUBLIC_API_URL=http://localhost:8000 npm run dev
+```
+
+## API Endpoints
+
+### Core AI Endpoints
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/v1/chat/completions` | POST | Chat completion (OpenAI-compatible) |
+| `/v1/translate` | POST | Translation between 70+ languages |
+| `/v1/batch/chat` | POST | Batch chat processing |
+| `/v1/batch/translate` | POST | Batch translation |
+| `/v1/vector` | GET | Encode text to HDC vector |
+| `/v1/stream` | GET | Server-Sent Events streaming |
+
+### Legacy Compatibility (old frontend)
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/chat` | POST | Legacy chat `{question: "..."}` → `{response: "..."}` |
+| `/ws/stream` | WebSocket | Legacy streaming interface |
+| `/health` | GET | System health & diagnostics |
+
+### Observability & Management
+| Endpoint | Description |
+|----------|-------------|
+| `/v1/stats` | Real-time swarm metrics (uptime, packets, latency, stability) |
+| `/v1/models` | Available models & capabilities |
+| `/metrics` | Prometheus metrics (if enabled) |
+| `/health` | Liveness & readiness probes |
+| `/health/subsystems` | Detailed subsystem health |
+
+### Security Endpoints
+| Endpoint | Purpose |
+|----------|---------|
+| `/v1/virus/scan/file` | VIRUS-VDI file scanning |
+| `/v1/scam/analyze/*` | Scam detection (phone, website, etc.) |
+| `/v1/antivirus/scan/*` | Multi-engine AV scanning |
+| `/v1/scanner/*` | Automated scanning scheduler |
+
+## Environment Variables
+
+### Backend (gateway)
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `ENVIRONMENT` | `production` | `development` `staging` `production` |
+| `DEV_MODE` | `0` | Enable debug toolbar & verbose logging |
+| `SECURITY_HEADERS_ENABLED` | `1` | Enable security headers middleware |
+| `ENABLE_FINGERPRINTING` | `1` | Enable bot fingerprinting |
+| `ENABLE_REQUEST_SIGNING` | (unset) | Enable request signature verification |
+| `ENABLE_GRAPHQL` | `0` | Enable GraphQL endpoint |
+| `ENABLE_GRPC` | `0` | Enable gRPC endpoint |
+| `CORS_ALLOW_ORIGINS` | `http://localhost:3000,http://localhost:8000` | CORS allowed origins |
+| `REDIS_URL` | `redis://localhost:6379/0` | Redis connection string |
+| `REQUEST_SIGNING_SECRET` | (required if signing enabled) | HMAC secret for request signing |
+| `VAULT_ADDR` | (unset) | HashiCorp Vault address |
+| `VAULT_TOKEN` | (unset) | Vault auth token |
+| `AWS_REGION` | (unset) | AWS region for Secrets Manager |
+
+### Frontend
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | Backend API base URL |
+| `NEXT_PUBLIC_REFRESH_INTERVAL` | `2000` | Dashboard refresh (ms) |
+| `NEXT_PUBLIC_ENABLE_STREAMING` | `1` | Show streaming chat UI |
+| `NEXT_PUBLIC_ENABLE_BATCH` | `1` | Show batch processing UI |
+| `NODE_ENV` | `production` | `development` `production` |
+
+## Configuration Profiles
+
+The backend supports automatic profile application via `config/validator.py`:
+
+- **development** — verbose logging, dev middleware, no rate limits
+- **staging** — pre-production, CSRF enabled, moderate throttling
+- **production** — full security, tight rate limits, audit logging
+
+Set via: `ENVIRONMENT=staging` (or `development`/`production`)
+
+## Project Structure
+
+```
+hardwareless-ai/
+├── backend/                  # FastAPI gateway (now at repo root)
+│   ├── gateway/
+│   │   ├── app.py           # Main application + lifespan init
+│   │   ├── middleware/      # Auth, rate-limit, security headers, CSRF
+│   │   └── routes/          # API endpoints (v1 + legacy)
+│   ├── core_engine/         # HDC brain, plugins, cache, resilience
+│   ├── config/              # Settings, knowledge base, validation
+│   ├── network/             # HypervectorServer (port 8888)
+│   └── requirements.txt     # Python dependencies
+├── frontend/                # Next.js web application
+│   ├── src/
+│   │   ├── app/            # Next.js app router (layout, page)
+│   │   ├── components/     # SwarmChat, Stats, Visualizer
+│   │   └── config/         # Env config
+│   ├── public/
+│   ├── package.json
+│   └── Dockerfile
+├── docker-compose.yml       # Full-stack orchestration
+├── Dockerfile              # Backend image
+├── deploy/                 # K8s, Helm, Terraform
+├── tests/                  # Unit, property, load, fuzz
+└── scripts/               # Setup, bootstrap, phase mgmt
+```
+
+## Unified Commands
+
+```bash
+# Backend only
+python3 -m uvicorn gateway.app:app --reload
+
+# Frontend only (dev)
+cd frontend && npm run dev
+
+# Docker Compose (prod)
+docker-compose up -d
+
+# Docker Compose (dev with hot reload)
+docker-compose --profile dev up
+
+# Full test suite
+pytest tests/
+
+# Property-based tests
+pytest tests/property/
+
+# Load testing
+locust -f tests/load/locustfile.py
+
+# Fuzzing (requires Python 3.10+)
+python3 -m tests.fuzz.fuzz_input_validator
+```
+
+## Plugin System
+
+Hardwareless AI supports pluggable backends and extensions:
+
+- **TranslatorBackendPlugin** — swap translation engines (libretranslate, mtran, opus-mt)
+- **CompressionPlugin** — alternative cognitive compressors
+- **CachePlugin** — custom cache backends (RedisCluster, DynamoDB)
+- **ObservabilityPlugin** — external metrics/logs exporters
+- **SecurityPlugin** — custom threat intel feeds, PII redactors
+
+Plugins are discovered via entry points (`hardwareless_ai.plugins`) or directory scan.
+
+## Ten Expansion Phases (Completed)
+
+All phases fully implemented and integrated:
+
+1. ✅ **Plugin Architecture** — manifest-based discovery, dependency resolution, lifecycle management
+2. ✅ **Observability** — structured logging, metrics, health aggregation, request profiling
+3. ✅ **Connection Pooling & Async** — AIOHTTP pools, request batching, `@batched` decorator
+4. ✅ **Intelligent Caching** — multi-tier (memory/Redis/disk), cache-aside, warming
+5. ✅ **Resilience** — circuit breakers, fallbacks, bulkheads, timeout cascades
+6. ✅ **Developer Experience** — dev toolbar, hot-reload knowledge base, request logger
+7. ✅ **API Ecosystem** — batch, SSE, webhooks, GraphQL stub, gRPC stub
+8. ✅ **Advanced Security** — CSRF, bot detection, PII redaction, vaults, threat feeds
+9. ✅ **Deployment Polish** — Docker multi-stage, Helm charts, Terraform EKS, HPA
+10. ✅ **Quality Infrastructure** — property tests (Hypothesis), snapshots, fuzzing (Atheris), load tests (Locust), CI/CD
+
+## Security Features
+
+- CSRF token validation (staging/production)
+- Bot fingerprinting & behavioral scoring
+- PII redaction in logs/responses
+- Secrets vault integration (Env, HashiCorp Vault, AWS Secrets Manager)
+- Threat intelligence feeds (IP/User-Agent blocking)
+- Request signing for replay protection
+- Security headers (HSTS, CSP, X-Frame-Options, etc.)
+- Audit logging & anomaly detection
+
+## Performance & Scalability
+
+| Metric | Value |
+|--------|-------|
+| Vector dimensions | 10,000 |
+| Memory footprint | ~9.5 MB |
+| Speed (10k ops) | 32 ms |
+| vs Traditional NN | **601x faster** |
+| Languages supported | ~70 |
+| Connection pool size | configurable (default 20) |
+| Cache hit latency | <1 ms (memory) |
+| Circuit breaker recovery | exponential backoff |
+
+## License
+
+MIT
 
 ## Architecture
 

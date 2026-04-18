@@ -1,10 +1,62 @@
-numpy==1.26.4
-networkx==3.2.1
-psutil==5.9.8
-fastapi==0.104.1
-uvicorn==0.24.0
-aiohttp==3.9.1
-ctranslate2==4.0.0
-transformers==4.36.0
-sentencepiece==0.1.99
+# Hardwareless AI — Core Dependencies
+# This file is auto-generated from the project's setup.py and expanded infrastructure.
+# For production deployments, pin versions to the exact releases you have tested.
 
+# Core framework (required)
+fastapi>=0.104.0
+uvicorn>=0.24.0
+numpy>=1.26.0
+networkx>=3.2.0
+psutil>=5.9.0
+pydantic>=2.6.0
+starlette>=0.37.0
+
+# Caching & databases
+redis>=5.0.0
+
+# Connection pooling & HTTP
+aiohttp>=3.9.0
+
+# YAML configuration
+PyYAML>=6.0.0
+
+# Utilities
+python-dotenv>=1.2.0
+python-json-logger>=2.0.0
+
+# Optional: Server-Sent Events (SSE) streaming
+# sse-starlette>=1.0.0
+
+# Optional: GraphQL API support
+# graphql-core>=3.2.0
+
+# Optional: gRPC API support
+# grpcio>=1.60.0
+
+# Optional: HashiCorp Vault integration for secrets
+# hvac>=2.0.0
+
+# Optional: AWS Secrets Manager integration
+# aioboto3>=12.0.0
+
+# Optional: CTranslation2 for faster translation (alternative backend)
+# ctranslate2>=4.0.0
+
+# Optional: Transformers (for NLP models)
+# transformers>=4.36.0
+# sentencepiece>=0.1.0
+
+# Development & testing
+pytest>=8.0.0
+pytest-asyncio>=1.2.0
+pytest-mock>=3.12.0
+pytest-cov>=6.0.0  # Coverage reporting for VS Code pytest integration
+hypothesis>=6.0.0  # property-based testing
+locust>=2.0.0       # load testing
+atheris>=2.0.0      # fuzzing (Python 3.10+ only)
+
+# Code quality
+ruff>=0.13.0
+
+# Monitoring & observability (optional but recommended)
+prometheus-client>=0.20.0

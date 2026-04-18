@@ -9,7 +9,7 @@ import json
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from config.settings import DIMENSIONS, KNOWLEDGE_BASE, DEFAULT_NODE_COUNT, RESPONSE_TEMPLATES
 from core_engine.compression.compressor import CognitiveCompressor
 from core_engine.translation.encoder import Encoder
@@ -69,7 +69,7 @@ class Message(BaseModel):
 class ChatRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=1000)
     
-    @validator('question')
+    @field_validator('question', mode='after')
     def validate_question(cls, v):
         is_valid, error = _validator.validate_question(v)
         if not is_valid:
@@ -81,7 +81,7 @@ class OpenAIRequest(BaseModel):
     model: str = "hardwareless-core"
     messages: list[Message]
     
-    @validator('messages')
+    @field_validator('messages', mode='after')
     def validate_messages(cls, v):
         for msg in v:
             if not msg.content or len(msg.content) > 5000:
@@ -252,7 +252,7 @@ class TranslateRequest(BaseModel):
     source_lang: str = "auto"
     target_lang: str = "en"
     
-    @validator('text')
+    @field_validator('text', mode='after')
     def validate_text(cls, v):
         is_valid, error = _validator.validate_translation_text(v)
         if not is_valid:

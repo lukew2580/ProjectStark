@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # Backend API Gateway — FastAPI + HDC Engine
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hardwareless-backend
+    ports:
+      - "8000:8000"   # HTTP API
+    environment:
+      # Environment profiles: development, staging, production
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - DEV_MODE=${DEV_MODE:-0}
+      - ENABLE_GRAPHQL=${ENABLE_GRAPHQL:-0}
+      - ENABLE_GRPC=${ENABLE_GRPC:-0}
+      - ENABLE_REQUEST_SIGNING=${ENABLE_REQUEST_SIGNING:-0}
+      - SECURITY_HEADERS_ENABLED=${SECURITY_HEADERS_ENABLED:-1}
+      - ENABLE_FINGERPRINTING=${ENABLE_FINGERPRINTING:-1}
+      - REDIS_URL=redis://redis:6379/0
+      # Optional secrets (set in production)
+      # - REQUEST_SIGNING_SECRET=${REQUEST_SIGNING_SECRET}
+      # - VAULT_ADDR=${VAULT_ADDR}
+      # - VAULT_TOKEN=${VAULT_TOKEN}
+    volumes:
+      # Mount config and knowledge bases (optional)
+      - ./config:/app/config:ro
+      - ./knowledge_preheat.json:/app/knowledge_preheat.json:ro
+      - ./logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - hardwareless
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # Frontend — Next.js Web UI
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: hardwareless-frontend
+    ports:
+      - "3000:3000"   # Next.js dev/prod server
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+      - NODE_ENV=${NODE_ENV:-production}
+    volumes:
+      # For development: mount source code for hot reload
+      - ./frontend/src:/app/src:delegated
+      - ./frontend/public:/app/public:delegated
+      - ./frontend/package.json:/app/package.json:ro
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - hardwareless
+    # Development override: use docker-compose.override.yml for dev mode
+    # Command overridden in override to use `next dev`
+    restart: unless-stopped
+
+  # Redis — Caching & Session Store
+  redis:
+    image: redis:7-alpine
+    container_name: hardwareless-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - hardwareless
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+  frontend_node_modules:
+
+networks:
+  hardwareless:
+    driver: bridge

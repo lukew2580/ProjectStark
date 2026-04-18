@@ -10,6 +10,7 @@ from gateway.routes import chat, health, models, stats
 from gateway.routes import memory, skills, keys, websocket
 from gateway.routes import agents, bridge, xr, security, virus, scam, stealth, intel, evidence
 from gateway.routes import api_keys, vectors, batch
+from gateway.routes import legacy  # NEW: backward-compatible legacy endpoints
 
 # Optional dependency routes (only import if libs available)
 try:
@@ -76,8 +77,13 @@ async def lifespan(app: FastAPI):
         return {"languages": len(lm.get_supported_languages())}
     cache_mgr.register_warmer("translation_anchors", warm_translation_vectors)
     await cache_mgr.warm_namespace("translation_anchors")
+
     app.state.cache = cache_mgr
-    
+
+    # Initialize translation registry with cache + bulkhead
+    from core_engine.translation import get_registry as get_trans_registry
+    get_trans_registry(cache_manager=cache_mgr, bulkhead_max=20)
+
     # 5. Initialize telemetry singleton (nothing to do — module-level)
     from core_engine.telemetry import get_logger, get_metrics, get_health
     app.state.logger = get_logger()
@@ -215,6 +221,8 @@ app.include_router(intel.router)
 app.include_router(evidence.router)
 app.include_router(api_keys.router)
 app.include_router(vectors.router)
+# Legacy compatibility endpoints (must be at root for old frontend)
+app.include_router(legacy.router)
 
 if __name__ == "__main__":
     import uvicorn

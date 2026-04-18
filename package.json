@@ -1,0 +1,24 @@
+{
+  "name": "hardwareless-ai-monorepo",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Hardwareless AI — unified full-stack monorepo (backend + frontend)",
+  "scripts": {
+    "backend": "python3 -m uvicorn gateway.app:app --reload",
+    "frontend": "cd frontend && npm run dev",
+    "dev": "echo 'Run backend and frontend separately or use: docker-compose --profile dev up'",
+    "test": "cd backend && pytest",  // Note: backend already root-level pytest
+    "lint": "ruff check gateway/ core_engine/",
+    "typecheck": "cd frontend && npx tsc --noEmit",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "docker build -t hardwareless-ai-backend .",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:dev": "docker-compose --profile dev up"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=20",
+    "python": ">=3.10"
+  }
+}

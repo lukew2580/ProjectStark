@@ -23,6 +23,15 @@ setup(
         ],
         "discord": ["discord.py>=2.0"],
         "telegram": ["python-telegram-bot>=20.0"],
+        "test": [  # Testing dependencies
+            "pytest>=8.0.0",
+            "pytest-asyncio>=1.2.0",
+            "pytest-mock>=3.12.0",
+            "pytest-cov>=6.0.0",
+            "hypothesis>=6.0.0",
+            "locust>=2.0.0",
+            "atheris>=2.0.0; python_version>='3.10'",
+        ],
     },
     entry_points={
         "console_scripts": [
