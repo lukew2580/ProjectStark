@@ -1,0 +1,2 @@
+# Keeps the models directory in git.
+# Large model files (.gguf, .zip, etc) are ignored by .gitignore.

@@ -17,6 +17,7 @@ from core_engine.translation.decoder import Decoder
 from core_engine.translation import get_weave, setup_translation_backends
 from core_engine.pipeline.pipeline import DataFlowPipeline
 from core_engine.security.validator import get_validator, get_audit_logger, get_anomaly_detector, SecurityLevel, SecurityEvent
+from core_engine.inference import get_inference_registry, ModelType
 
 router = APIRouter()
 
@@ -182,61 +183,106 @@ async def chat_completions(request: OpenAIRequest, req: Request):
         )
     
     t_start = time.perf_counter()
-
-    compressed_prompt = compressor.compress(raw_prompt)
-    input_vector = encoder.encode(compressed_prompt)
-    output_vector = await pipeline.process(input_vector)
-    top_concepts = decoder.decode_top(output_vector, KNOWLEDGE_BASE, n=5)
-
-    with open("config/knowledge/code_atoms.json", "r") as f:
-        code_atoms = json.load(f)
-    agent_proposal = decoder.synthesize_code(output_vector, code_atoms)
     
-    sentinel_incidents = pipeline.sentinel.incidents_prevented
-    safety_status = "SAFE" if sentinel_incidents == 0 else "NEUTRALIZED"
+    # Model routing: use appropriate backend based on request.model
+    model_id = request.model
+    inference_registry = get_inference_registry()
+    
+    if model_id == ModelType.QWEN2_5_7B.value:
+        # Use Qwen LLM backend
+        qwen_backend = inference_registry.get_backend(model_id)
+        
+        if qwen_backend is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Model '{model_id}' is not available. Ensure Qwen model is downloaded and ctranslate2/transformers are installed."
+            )
+        
+        try:
+            response_data = await qwen_backend.chat_completion(
+                messages=[m.dict() for m in request.messages],
+                model=model_id,
+                max_tokens=512,
+                temperature=0.7
+            )
+        except Exception as e:
+            _audit.log_event(
+                SecurityEvent(
+                    timestamp=datetime.utcnow().isoformat(),
+                    level=SecurityLevel.MEDIUM,
+                    event_type="inference_error",
+                    client_ip=client_ip,
+                    user_agent=user_agent,
+                    details={"error": str(e), "model": model_id}
+                )
+            )
+            raise HTTPException(status_code=500, detail=f"Inference error: {str(e)}")
+    elif model_id == ModelType.HARDWARELESS_CORE.value:
+        # Use hypervector pipeline (default)
+        compressed_prompt = compressor.compress(raw_prompt)
+        input_vector = encoder.encode(compressed_prompt)
+        output_vector = await pipeline.process(input_vector)
+        top_concepts = decoder.decode_top(output_vector, KNOWLEDGE_BASE, n=5)
 
-    elapsed_ms = (time.perf_counter() - t_start) * 1000
-    template = RESPONSE_TEMPLATES[hash(raw_prompt) % len(RESPONSE_TEMPLATES)]
-    response_text = template.format(
-        concepts=", ".join(top_concepts),
-        node_count=DEFAULT_NODE_COUNT,
-        time_ms=f"{elapsed_ms:.2f}",
-    )
+        with open("config/knowledge/code_atoms.json", "r") as f:
+            code_atoms = json.load(f)
+        agent_proposal = decoder.synthesize_code(output_vector, code_atoms)
+        
+        sentinel_incidents = pipeline.sentinel.incidents_prevented
+        safety_status = "SAFE" if sentinel_incidents == 0 else "NEUTRALIZED"
 
-    if agent_proposal and safety_status == "SAFE":
-        response_text += f"\n\n--- [AGENTIC PROPOSAL] ---\n{agent_proposal}"
-    elif safety_status == "NEUTRALIZED":
-        response_text += f"\n\n[SENTINEL ALERT] A destructive code pattern was detected and neutralized."
+        elapsed_ms = (time.perf_counter() - t_start) * 1000
+        template = RESPONSE_TEMPLATES[hash(raw_prompt) % len(RESPONSE_TEMPLATES)]
+        response_text = template.format(
+            concepts=", ".join(top_concepts),
+            node_count=DEFAULT_NODE_COUNT,
+            time_ms=f"{elapsed_ms:.2f}",
+        )
 
-    raw_words = len(raw_prompt.split())
-    compressed_words = len(compressed_prompt.split()) if compressed_prompt else 0
-    words_saved = raw_words - compressed_words
+        if agent_proposal and safety_status == "SAFE":
+            response_text += f"\n\n--- [AGENTIC PROPOSAL] ---\n{agent_proposal}"
+        elif safety_status == "NEUTRALIZED":
+            response_text += f"\n\n[SENTINEL ALERT] A destructive code pattern was detected and neutralized."
 
-    response_data = {
-        "id": f"chatcmpl-{uuid.uuid4().hex[:12]}",
-        "object": "chat.completion",
-        "created": int(time.time()),
-        "model": request.model,
-        "choices": [{
-            "index": 0,
-            "message": {
-                "role": "assistant",
-                "content": response_text,
-            },
-            "finish_reason": "stop"
-        }],
-        "usage": {
-            "prompt_dimensions": compressed_words * DIMENSIONS,
-            "completion_dimensions": DIMENSIONS,
-            "total_dimensions": (compressed_words + 1) * DIMENSIONS,
-            "compression": {
-                "raw_words": raw_words,
-                "compressed_words": compressed_words,
-                "words_saved": words_saved,
-                "ratio": f"{words_saved / max(raw_words, 1):.0%}",
+        raw_words = len(raw_prompt.split())
+        compressed_words = len(compressed_prompt.split()) if compressed_prompt else 0
+        words_saved = raw_words - compressed_words
+
+        response_data = {
+            "id": f"chatcmpl-{uuid.uuid4().hex[:12]}",
+            "object": "chat.completion",
+            "created": int(time.time()),
+            "model": request.model,
+            "choices": [{
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": response_text,
+                },
+                "finish_reason": "stop"
+            }],
+            "usage": {
+                "prompt_dimensions": compressed_words * DIMENSIONS,
+                "completion_dimensions": DIMENSIONS,
+                "total_dimensions": (compressed_words + 1) * DIMENSIONS,
+                "compression": {
+                    "raw_words": raw_words,
+                    "compressed_words": compressed_words,
+                    "words_saved": words_saved,
+                    "ratio": f"{words_saved / max(raw_words, 1):.0%}",
+                }
             }
         }
-    }
+    else:
+        # Unknown model
+        raise HTTPException(
+            status_code=400,
+            detail=f"Model '{model_id}' not recognized. Available: hardwareless-core, qwen2.5-7b"
+        )
+
+    # At this point, response_data is guaranteed to be set by one of the branches above
+    # (Exceptions in Qwen branch prevent fall-through)
+    assert response_data is not None, "Internal error: response not generated"
 
     # Add anomaly header if detected
     headers = {}

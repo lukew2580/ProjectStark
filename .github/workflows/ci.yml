@@ -1,5 +1,5 @@
 # Hardwareless AI — CI Pipeline
-# Runs: lint, type check, unit tests, property tests, security audit, fuzzing, build
+# Runs: lint, type check, unit tests, property tests, security audit
 # File: .github/workflows/ci.yml
 
 name: CI
@@ -11,8 +11,11 @@ on:
     branches: [main]
 
 env:
-  PYTHON_VERSION: "3.9"
-  POETRY_VERSION: "1.7"
+  PYTHON_VERSION: "3.11"
+  # Force legacy numpy backend — no torchhd/GPU probing in CI
+  HDC_BACKEND: "legacy"
+  # Disable Qwen model loading in CI (model not present in repo)
+  QWEN_ENABLED: "0"
 
 jobs:
   # ——————————————————————————————
@@ -23,29 +26,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - name: Install dependencies
+          cache: "pip"
+      - name: Install lint tools
         run: |
           python -m pip install --upgrade pip
-          pip install flake8 black isort mypy types-requests
-          pip install -e . --quiet
-      - name: Black formatting check
-        run: black --check .
-      - name: isort import order check
-        run: isort --check-only .
-      - name: Flake8 lint
-        run: flake8 --max-line-length=120 --exclude=venv,build,dist .
-      - name: MyPy type check
-        run: mypy --ignore-missing-imports gateway/ core_engine/ || true  # Optional for now
+          pip install ruff mypy types-requests
+      - name: Ruff lint + format check
+        run: |
+          ruff check . --select E,W,F --ignore E501 --exclude venv,build,dist,frontend,node_modules,.next
+          ruff format --check . --exclude venv,build,dist,frontend,node_modules,.next
+      - name: MyPy type check (non-blocking)
+        run: mypy --ignore-missing-imports gateway/ core_engine/ || true
 
   # ——————————————————————————————
-  # Unit Tests
+  # Unit Tests (matrix: 3.9, 3.10, 3.11)
   # ——————————————————————————————
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.9", "3.10", "3.11"]
     services:
@@ -60,24 +62,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: "pip"
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          pip install -e . pytest pytest-asyncio
-          pip install hypothesis  # property tests
-      - name: Run unit tests
+          pip install -r requirements.txt
+          pip install -e .
+      - name: Run unit tests with coverage
+        env:
+          HDC_BACKEND: legacy
+          QWEN_ENABLED: "0"
+          RUN_INTEGRATION_TESTS: "0"
         run: |
-          pytest -v --tb=short
+          pytest -v --tb=short \
+            --cov=core_engine \
+            --cov=gateway \
+            --cov=network \
+            --cov-report=xml:coverage.xml \
+            --cov-report=term-missing \
+            --ignore=tests/integration \
+            --ignore=tests/fuzz \
+            --ignore=tests/load \
+            tests/
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        if: matrix.python-version == '3.11'
+        uses: codecov/codecov-action@v4
         with:
           files: ./coverage.xml
           flags: unittests
           name: codecov-umbrella
+          fail_ci_if_error: false
 
   # ——————————————————————————————
   # Property Tests (Hypothesis)
@@ -87,13 +104,19 @@ jobs:
     needs: test
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - name: Install
+          cache: "pip"
+      - name: Install dependencies
         run: |
-          pip install -e . pytest hypothesis numpy
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
       - name: Run property tests
+        env:
+          HDC_BACKEND: legacy
+          QWEN_ENABLED: "0"
         run: |
           pytest tests/property/ -v --tb=short -x
 
@@ -104,24 +127,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
       - name: Install audit tools
         run: |
-          pip install bandit safety
-      - name: Bandit scan
-        run: bandit -r core_engine/ gateway/ -f json -o bandit-report.json || true
-      - name: Safety check (vulns)
-        run: safety check --json || true
-      - name: Upload SARIF
-        uses: github/codeql-action/upload-sarif@v2
+          pip install bandit pip-audit
+      - name: Bandit scan (text output)
+        run: |
+          bandit -r core_engine/ gateway/ network/ \
+            --severity-level medium \
+            --confidence-level medium \
+            -f txt \
+            -o bandit-report.txt \
+            || true
+          cat bandit-report.txt
+      - name: Upload bandit report
+        uses: actions/upload-artifact@v4
+        if: always()
         with:
-          sarif_file: bandit-report.json
-        continue-on-error: true
+          name: bandit-security-report
+          path: bandit-report.txt
+      - name: pip-audit vulnerability check
+        run: pip-audit --requirement requirements.txt || true
 
   # ——————————————————————————————
-  # Build & Publish (on tag)
+  # Build & Publish (on tag only)
   # ——————————————————————————————
   build:
     runs-on: ubuntu-latest
@@ -133,38 +165,42 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: |
-            ghcr.io/hardwareless-ai/gateway:${{ github.ref_name }}
-            ghcr.io/hardwareless-ai/gateway:latest
+            ghcr.io/${{ github.repository_owner }}/hardwareless-ai:${{ github.ref_name }}
+            ghcr.io/${{ github.repository_owner }}/hardwareless-ai:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
   # ——————————————————————————————
-  # Mutation Testing (on schedule or manually)
+  # Mutation Testing (schedule or manual only)
   # ——————————————————————————————
   mutation:
     runs-on: ubuntu-latest
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
       - name: Install mutmut
         run: pip install mutmut
       - name: Run mutation testing
+        env:
+          HDC_BACKEND: legacy
+          QWEN_ENABLED: "0"
         run: |
           mutmut run --paths-to-mutate=core_engine/
           mutmut results

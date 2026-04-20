@@ -1,6 +1,5 @@
 # Hardwareless AI — Core Dependencies
-# This file is auto-generated from the project's setup.py and expanded infrastructure.
-# For production deployments, pin versions to the exact releases you have tested.
+# Pinned to tested, compatible ranges. Update with care.
 
 # Core framework (required)
 fastapi>=0.104.0
@@ -24,6 +23,9 @@ PyYAML>=6.0.0
 python-dotenv>=1.2.0
 python-json-logger>=2.0.0
 
+# Cryptography (required for network/crypto.py)
+PyNaCl>=1.5.0
+
 # Optional: Server-Sent Events (SSE) streaming
 # sse-starlette>=1.0.0
 
@@ -39,24 +41,32 @@ python-json-logger>=2.0.0
 # Optional: AWS Secrets Manager integration
 # aioboto3>=12.0.0
 
-# Optional: CTranslation2 for faster translation (alternative backend)
-# ctranslate2>=4.0.0
+# CTranslate2 for translation and model conversion
+ctranslate2>=4.0.0
 
-# Optional: Transformers (for NLP models)
-# transformers>=4.36.0
-# sentencepiece>=0.1.0
+# Transformers + Tokenizers (used by Qwen GGUF loader and translation)
+transformers>=4.36.0
+sentencepiece>=0.1.0
+
+# llama-cpp-python for GGUF inference (default Qwen backend)
+llama-cpp-python>=0.2.0
 
 # Development & testing
 pytest>=8.0.0
-pytest-asyncio>=1.2.0
+# NOTE: pytest-asyncio latest stable is 0.24.x — ">=1.2.0" does not exist
+pytest-asyncio>=0.23.0,<1.0.0
 pytest-mock>=3.12.0
 pytest-cov>=6.0.0  # Coverage reporting for VS Code pytest integration
 hypothesis>=6.0.0  # property-based testing
 locust>=2.0.0       # load testing
-atheris>=2.0.0      # fuzzing (Python 3.10+ only)
+# atheris is Python 3.10+ and Linux-only — keep commented for CI
+# atheris>=2.0.0
+
+# HTTP client for integration tests
+httpx>=0.27.0
 
 # Code quality
-ruff>=0.13.0
+ruff>=0.4.0
 
 # Monitoring & observability (optional but recommended)
 prometheus-client>=0.20.0

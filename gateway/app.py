@@ -90,6 +90,64 @@ async def lifespan(app: FastAPI):
     app.state.metrics = get_metrics()
     app.state.health = get_health()
     
+    # 5a. Initialize inference registry and load model backends
+    from core_engine.inference import (
+        get_inference_registry, ModelType,
+        QwenBackend, OllamaBackend, TransformersBackend, CTranslate2Backend
+    )
+    inference_registry = get_inference_registry()
+    
+    # Register Hardwareless Core (hypervector) — always available
+    inference_registry.register_backend(ModelType.HARDWARELESS_CORE, None)
+    
+    # Register Qwen if enabled in config
+    qwen_config = inference_registry.get_config(ModelType.QWEN2_5_7B)
+    if qwen_config and qwen_config.enabled:
+        backend_impl = qwen_config.backend_impl
+        try:
+            if backend_impl == "llama_cpp":
+                # GPU layers: -1=auto-detect, 0=CPU-only, >0=explicit layer count
+                gpu_layers = int(os.getenv("QWEN_GPU_LAYERS", "-1"))
+                qwen_backend = QwenBackend(
+                    model_path=qwen_config.path,
+                    n_ctx=int(os.getenv("QWEN_CONTEXT_LENGTH", "4096")),
+                    n_batch=int(os.getenv("QWEN_BATCH_SIZE", "512")),
+                    n_gpu_layers=gpu_layers
+                )
+            elif backend_impl == "ollama":
+                ollama_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+                ollama_model = os.getenv("OLLAMA_MODEL_NAME", "qwen2.5:7b")
+                qwen_backend = OllamaBackend(base_url=ollama_url, model_name=ollama_model)
+            elif backend_impl == "ctranslate2":
+                ct_path = os.getenv("CTRANSLATE2_MODEL_PATH", qwen_config.path)
+                ct_device = os.getenv("CTRANSLATE2_DEVICE", "cpu")
+                ct_compute = os.getenv("CTRANSLATE2_COMPUTE_TYPE", "int8")
+                qwen_backend = CTranslate2Backend(
+                    model_path=ct_path,
+                    device=ct_device,
+                    compute_type=ct_compute
+                )
+            elif backend_impl == "transformers":
+                model_id = os.getenv("TRANSFORMERS_MODEL_ID", "Qwen/Qwen2.5-7B")
+                device = os.getenv("TRANSFORMERS_DEVICE", "auto")  # auto-detects GPU
+                qwen_backend = TransformersBackend(
+                    model_id_or_path=model_id,
+                    device=device,
+                    torch_dtype="auto"
+                )
+            else:
+                print(f"--- [INFERENCE] Unknown backend '{backend_impl}' for Qwen ---")
+                qwen_backend = None
+            
+            if qwen_backend:
+                asyncio.create_task(qwen_backend._ensure_loaded())
+                inference_registry.register_backend(ModelType.QWEN2_5_7B, qwen_backend)
+                print(f"--- [INFERENCE] Qwen backend '{backend_impl}' initialized ---")
+        except Exception as e:
+            print(f"--- [INFERENCE] Qwen backend '{backend_impl}' failed: {e} ---")
+    
+    app.state.inference = inference_registry
+    
     # 6. Load threat intel feeds
     from core_engine.security.advanced import load_threat_feeds
     asyncio.create_task(load_threat_feeds())

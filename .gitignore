@@ -11,8 +11,36 @@ build/
 venv/
 env/
 .env
+.env.local
 *.log
 logs/
 node_modules/
 .next/
 .DS_Store
+
+# ────────────────────────────────────────────────
+# Large model files — NEVER commit these to git.
+# Download models separately (see README for instructions).
+# ────────────────────────────────────────────────
+models/*.gguf
+models/*.bin
+models/*.zip
+models/*.tar.gz
+models/*.safetensors
+models/*.pt
+models/*.pth
+# Keep the placeholder so the directory exists in git
+!models/.gitkeep
+
+# Coverage & test artifacts
+.coverage
+coverage.xml
+htmlcov/
+bandit-report.json
+.hypothesis/
+
+# Ruff / linting cache
+.ruff_cache/
+
+# macOS metadata
+*.DS_Store

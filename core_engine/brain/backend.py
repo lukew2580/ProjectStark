@@ -61,6 +61,10 @@ class HDBackend(Protocol):
         """Compute cosine similarity between vectors."""
         ...
 
+    def normalize(self, vec: Vector) -> Vector:
+        """Normalize vector to unit length."""
+        ...
+
     @property
     def name(self) -> str:
         """Backend identifier."""
@@ -122,6 +126,13 @@ class LegacyNumpyBackend:
 
     def similarity(self, vec_a: Vector, vec_b: Vector, dimensions: int) -> float:
         return float(np.dot(vec_a.astype(np.int32), vec_b.astype(np.int32))) / dimensions
+
+    def normalize(self, vec: Vector) -> Vector:
+        v = vec.astype(np.float32)
+        norm = np.linalg.norm(v)
+        if norm < 1e-9:
+            return v
+        return v / norm
 
     @property
     def name(self) -> str:
@@ -239,6 +250,15 @@ class TorchHDBackend:
         # torchhd similarity is cosine on [-1,1] space
         sim = self._vsa.similarity(hv_a, hv_b)
         return float(sim)
+
+    def normalize(self, vec: Vector) -> Vector:
+        hv = self._to_tensor(vec)
+        import torch
+        v_float = hv.float()
+        norm = torch.linalg.norm(v_float)
+        if norm < 1e-9:
+            return self._to_numpy(v_float).astype(np.float32)
+        return self._to_numpy(v_float / norm).astype(np.float32)
 
     @property
     def name(self) -> str:

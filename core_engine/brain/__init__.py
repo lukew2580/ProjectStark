@@ -36,6 +36,8 @@ from .hdc import (
     list_available_backends,
     switch_backend,
     register_backend,
+    permutation,
+    normalize,
 )
 
 # ============================================================================
@@ -59,12 +61,14 @@ permute = op_permute    # type: ignore[assignment]
 
 # Exports
 __all__ = [
-    # Core HDC operations (backend-aware, fast)
+    # HDC operations (backend-aware, fast)
     "generate_random_vector",
     "bind",
     "bundle",
     "permute",
+    "permutation",  # alias for permute()
     "similarity",
+    "normalize",    # unit-norm utility
     # Learning (higher-level, memory-aware, different semantics)
     "associate",
     # Explicitly named learning variants (for advanced use)

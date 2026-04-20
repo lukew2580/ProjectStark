@@ -6,6 +6,7 @@ Skip by default; enable with: RUN_INTEGRATION_TESTS=1 pytest tests/integration/
 import pytest
 import httpx
 import os
+from pathlib import Path
 
 # Skip all tests in this module unless explicitly enabled
 pytestmark = pytest.mark.skipif(

@@ -453,3 +453,7 @@ hardwareless-ai/
 - [x] Phase 4: Antivirus Integration
 - [ ] Phase 5: Real P2P networking
 - [ ] Phase 6: Quantum substrate hooks
+## Local Models
+The `models/` directory is ignored by git for large `.gguf` and `.zip` files to prevent repository bloat.
+Please download the required models manually and place them in the `models/` directory.
+

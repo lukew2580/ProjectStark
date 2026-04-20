@@ -72,13 +72,39 @@ def bundle(vectors: List[np.ndarray], dimensions: int, **kwargs) -> np.ndarray:
 def permute(vec: np.ndarray, shifts: int = 1) -> np.ndarray:
     """
     Permute (circularly shift) a vector.
-    
+
     Encodes position/order. Essential for differentiating
     "dog bites man" vs "man bites dog".
     """
     _ensure_initialized()
     backend = get_backend()
     return backend.permute(vec, shifts)
+
+
+def permutation(vec: np.ndarray, shifts: int = 1, seed: Optional[int] = None) -> np.ndarray:
+    """
+    Alias for permute() — provided for API completeness.
+
+    The ``seed`` parameter is accepted but ignored for the legacy backend
+    (circular shift is deterministic by definition). Kept for forward
+    compatibility with stochastic permutation backends.
+    """
+    return permute(vec, shifts)
+
+
+def normalize(vec: np.ndarray) -> np.ndarray:
+    """
+    Normalize a vector to unit L2 norm (float32 output).
+
+    Useful for converting bipolar int8 vectors into the float space
+    expected by cosine-similarity operations in some backends.
+    Returns a zero vector unchanged (avoids division by zero).
+    """
+    v = vec.astype(np.float32)
+    norm = np.linalg.norm(v)
+    if norm < 1e-9:
+        return v
+    return v / norm
 
 
 def similarity(vec_a: np.ndarray, vec_b: np.ndarray, dimensions: int) -> float:
@@ -114,6 +140,20 @@ def switch_backend(name: str) -> None:
     """Switch to a different HDC backend at runtime."""
     set_active_backend(name)
     print(f"[HDC] Switched to backend: {name}")
+
+
+__all__ = [
+    "generate_random_vector",
+    "bind",
+    "bundle",
+    "permute",
+    "permutation",
+    "similarity",
+    "normalize",
+    "get_current_backend",
+    "list_available_backends",
+    "switch_backend",
+]
 
 
 # ============================================================================

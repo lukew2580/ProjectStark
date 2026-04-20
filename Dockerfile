@@ -4,7 +4,7 @@
 # ——————————————————————————————
 # Stage 1: Builder — compile dependencies
 # ——————————————————————————————
-FROM python:3.9-slim AS builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
@@ -14,23 +14,21 @@ RUN apt-get update && apt-get install -y \
     g++ \
     libssl-dev \
     libffi-dev \
-    cargo \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Poetry or pip
-COPY pyproject.toml poetry.lock* setup.py* requirements.txt* ./
-RUN pip install --user --no-cache-dir --upgrade pip setuptools wheel
+# Install pip tools
+COPY setup.py* requirements.txt* ./
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
-# Install Python deps into /install
-RUN PIP_TARGET=/install pip install --no-cache-dir -r requirements.txt || \
-    (test -f pyproject.toml && pip install --no-cache-dir poetry && poetry config virtualenvs.create false && poetry install --no-interaction --no-ansi) || \
-    (test -f setup.py && pip install --no-cache-dir -e .)
+# Install Python deps
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir -e . 2>/dev/null || true
 
 # ——————————————————————————————
 # Stage 2: Runtime — minimal image
 # ——————————————————————————————
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
